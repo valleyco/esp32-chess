@@ -1,0 +1,3 @@
+[submodule "components/chess"]
+	path = components/chess
+	url = git@github.com:valleyco/esp32-chess-lib.git

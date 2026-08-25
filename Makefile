@@ -1,5 +1,7 @@
 IDF ?= idf.py
 PORT ?= /dev/ttyUSB0
+# Engine lives in git submodule components/chess (esp32-chess-lib).
+CHESS_LIB ?= components/chess
 
 # Default target is the plugged CYD (classic ESP32).
 .PHONY: build build-esp32 build-esp32-lcdtest build-esp32-touchtest \
@@ -49,18 +51,18 @@ monitor-esp32:
 test: test-chess test-ui
 
 test-chess:
-	$(MAKE) -C host/chess test
+	$(MAKE) -C $(CHESS_LIB) test
 
 test-ui:
 	$(MAKE) -C host/ui test
 
 bench:
-	$(MAKE) -C host/chess bench
+	$(MAKE) -C $(CHESS_LIB) bench
 
 clean:
 	rm -rf build-esp32 build-esp32-lcdtest build-esp32-touchtest \
 		build-esp32-touchcalib \
 		sdkconfig.esp32 sdkconfig sdkconfig.old \
 		host/lcdtest/generated lcd_test_320x240.bmp
-	$(MAKE) -C host/chess clean
+	$(MAKE) -C $(CHESS_LIB) clean
 	$(MAKE) -C host/ui clean

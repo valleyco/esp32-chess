@@ -11,6 +11,8 @@ Living plan: [`PLAN.md`](PLAN.md). Board notes:
 
 - ESP-IDF **6.1** (same as `esp32-invaders` on this machine: source
   `Projects/esp-idf/export.sh` before `make`)
+- Git submodule **`components/chess`** → [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib)
+  (`git clone --recurse-submodules …` or `git submodule update --init`)
 - Classic ESP32 CYD on USB serial (default **`/dev/ttyUSB0`**)
 - Host tests: `gcc` / `g++` (no IDF)
 
@@ -18,11 +20,14 @@ Living plan: [`PLAN.md`](PLAN.md). Board notes:
 
 ```bash
 . /path/to/esp-idf/export.sh
+git clone --recurse-submodules git@github.com:valleyco/esp32-chess.git
 cd esp32-chess
 make test          # host: chess API + UI geom/FSM/calib math
 make build         # firmware
 make flash monitor # needs the board plugged in
 ```
+
+If you already cloned without submodules: `git submodule update --init --recursive`.
 
 Override port: `make flash PORT=/dev/ttyACM0`.
 
@@ -63,11 +68,14 @@ Squares: engine index **a8 = 0 … h1 = 63**; board is left 240×240 (30 px cell
 ## Host tests (TDD)
 
 ```bash
-make test           # all (chess API + fixed-depth bench goldens + UI)
-make test-chess     # chess_api + bench goldens
+make test           # all (chess lib + UI geom/FSM/calib math)
+make test-chess     # delegates to components/chess (API + depth goldens)
 make bench          # print depth/nodes/nps table (no asserts)
 make test-ui        # geom, dirty mask, FSM, strip hits, touch calib math
 ```
+
+Optional strength suite lives in the lib (`make -C components/chess bench-wac-smoke`);
+it is **not** part of `make test`.
 
 No LCD/IDF in `host/` — pure `gcc` against `components/chess` and `components/ui`
 (plus board calib math).
@@ -79,9 +87,9 @@ re-enable upstream-style depth lines, build with `-DCHESS_ENGINE_SERIAL`.
 
 ```text
 components/board/   ST7789 + XPT2046 HAL, touch calib math/NVS/wizard
-components/chess/   GPL engine + chess_api (in-tree port)
+components/chess/   git submodule → esp32-chess-lib (GPL engine + chess_api)
 components/ui/      geom, dirty redraw, FSM, paint
-host/chess|ui/      host unit tests
+host/ui/            host UI unit tests
 main/               game loop + lcd/touch/calib probe mains
 ```
 
@@ -91,15 +99,13 @@ Board paint is **square-level dirty** (`last_drawn[64]`), not a full framebuffer
 only call into it when the think worker is idle (except the worker’s own
 `chess_think`); do not touch engine globals outside `chess_api`.
 
-API notes (in-tree hardening toward a future C lib):
+API notes (see lib `chess_api.h`):
 
-- `chess_set_fen` / `chess_get_fen` — `const char*` FEN I/O (no Arduino `String` on this path)
-- `chess_think_time` / `chess_think_depth` — play vs fixed-depth (bench-friendly);
-  optional `chess_search_result_t` (move, depth, nodes, score)
+- `chess_set_fen` / `chess_get_fen` — `const char*` FEN I/O
+- `chess_think_time` / `chess_think_nodes` / `chess_think_depth` — play vs
+  CPU-independent effort; optional `chess_search_result_t`
 - `chess_legal_moves` — legal list for the side to move
 - `chess_undo_ply` / `chess_undo` — one half-move vs human+engine pair
-- `CHESS_PIECE_*` / `CHESS_PROMO_*` — piece/promo constants
-- `make bench` / `host/chess/bench_chess` — fixed-depth node goldens (CPU-independent)
 
 ## License and attribution
 
@@ -109,9 +115,8 @@ keep license notices).
 
 | Piece | License / credit |
 |---|---|
-| Chess engine (`components/chess/`) | **GPL-3.0** — original by **Sergey Urusov** ([Hackster](https://www.hackster.io/Sergey_Urusov/esp32-chess-engine-c29dd9), GPL3+); packaged by [hpsaturn/esp32-chess-engine](https://github.com/hpsaturn/esp32-chess-engine). Full text: [`components/chess/LICENSE`](components/chess/LICENSE). |
+| Chess engine (`components/chess` → esp32-chess-lib) | **GPL-3.0** — original by **Sergey Urusov** ([Hackster](https://www.hackster.io/Sergey_Urusov/esp32-chess-engine-c29dd9), GPL3+); packaged by [hpsaturn/esp32-chess-engine](https://github.com/hpsaturn/esp32-chess-engine). Full text: [`components/chess/LICENSE`](components/chess/LICENSE). |
 | ESP-IDF / `esp_lcd` | Apache-2.0 (compatible with GPL-3 when combined) |
 | This app’s UI/HAL glue | Same combined work — treat the distributed firmware as GPL-3.0-compatible |
 
-Do not remove `components/chess/LICENSE` or the engine author credit in
-`chess_engine.cpp` when publishing.
+Do not remove the engine LICENSE or author credit when publishing.

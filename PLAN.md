@@ -16,7 +16,8 @@ Statuses: `todo` · `discuss` · `agreed` · `in progress` · `done`
 |---|---|
 | Board | [`../esp32-invaders/docs/boards/esp32-2432s028r/BOARD.md`](../esp32-invaders/docs/boards/esp32-2432s028r/BOARD.md) — classic ESP32, **ST7789** 320×240, **XPT2046** on a separate SPI bus |
 | Engine | Local clone: [`../esp32-chess-engine`](../esp32-chess-engine) — **one** Arduino file (`src/chess_engine.cpp`, ~3.8k lines), PlatformIO, **serial console only** |
-| This repo | Greenfield: `/home/davidl/Projects/esp32-chess` |
+| Engine lib | [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib) — C ABI + host tests; consumed as git submodule `components/chess` |
+| This repo | CYD app: `/home/davidl/Projects/esp32-chess` |
 
 Upstream is **not** a drop-in library. It is a full sketch: `setup`/`loop`, `Serial` FEN/`game`/`WAC`/`TIME` commands, Arduino `String`, global `pole[64]` / `pos[]` / `solve_step()`. UI, display, and touch must be built here.
 
@@ -25,7 +26,7 @@ License: engine is **GPL-3.0** (Hackster original is GPL3+). Porting/modifying i
 ```mermaid
 flowchart TB
   subgraph testhost [Host tests]
-    HostChess[host/chess gcc]
+    HostChess[esp32-chess-lib gcc]
     HostUi[host/ui gcc]
   end
   subgraph host [Firmware host]
@@ -33,7 +34,7 @@ flowchart TB
     UI[ui touch chessboard]
     BoardHAL[board HAL ST7789 + XPT2046]
   end
-  subgraph engine [components/chess]
+  subgraph engine [esp32-chess-lib via components/chess]
     API[chess_api thin wrapper]
     Core[chess_engine.cpp search + rules]
   end
@@ -49,8 +50,7 @@ flowchart TB
 
 - **ESP-IDF** (not PlatformIO/Arduino), mirroring [`../esp32-invaders`](../esp32-invaders): reuse verified CYD pins, ST7789 transforms, touch mapping, and Makefile flash flow.
 - **TDD** for pure logic (chess API, square mapping, touch FSM, calib math). Write host tests first; implement until green. Device lcd/touch probes are bring-up checks, not a substitute for host tests.
-- **Port this engine, in-tree first.** Do not rewrite search/rules and do not pull Stockfish-class code onto classic ESP32. Copy sources + LICENSE into `components/chess/`, peel the sketch into `chess_api`, strip Arduino. Do **not** depend on upstream’s `loop()` UI.
-- **No separate engine repo in v1.** A standalone lib is the right *end* shape, but the current code is a 3.8k-line sketch, not a library. Extract to its own repo only after `chess_api` has stopped moving (and/or a second consumer appears).
+- **Port this engine, then extract.** Do not rewrite search/rules and do not pull Stockfish-class code onto classic ESP32. Engine lives in [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib); this app links it as submodule `components/chess`. Do **not** depend on upstream’s `loop()` UI.
 - **Gameplay v1:** human White vs engine Black; touch from-square → to-square; short think time (~2–5 s, `TIME`-style); undo + new game in a side strip.
 - **No full 320×240 framebuffer** (153 KB RGB565) — classic ESP32 RAM is tight with engine BSS (`pos[MAXDEPTH]` + `game_steps[1000]` alone is tens of KB). Draw with rect fills + small piece sprites / glyph blits (same spirit as invaders row/rect HAL).
 
@@ -59,7 +59,7 @@ flowchart TB
 | ID | Topic | Choice |
 |---|---|---|
 | D1 | Engine source | **Port** `../esp32-chess-engine` (Urusov / hpsaturn). Not a rewrite; not a heavier engine. |
-| D2 | Where it lives | **In-tree** `components/chess/` until the API is boring. Split to a separate lib repo later, not first. |
+| D2 | Where it lives | **Standalone** [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib); app uses git submodule `components/chess`. In-tree was v1 until API stabilized. |
 | D3 | License | **GPL-3** for this firmware if we vendor/link the engine; keep LICENSE + attribution. |
 | D4 | Process | **TDD** — host `gcc` tests for `chess` / pure `ui` helpers before wiring LCD. Device probes only for HAL. |
 | D5 | Board paint | **Square-level dirty redraw** — shadow `last_drawn[64]`; only repaint changed / highlighted squares via `fill_rect` + piece sprite. No full RGB565 framebuffer; not invaders 1bpp row-dirty. |
@@ -71,7 +71,7 @@ Same spirit as invaders: logic compiles on Linux with `gcc` and on ESP32 with ID
 
 | Layer | Host-testable? | How |
 |---|---|---|
-| `components/chess` (`chess_api` + engine) | **Yes** | `host/chess/` — no Arduino, no IDF. Assert new game, legal moves, think, undo, FEN/pole. |
+| `esp32-chess-lib` (`chess_api` + engine) | **Yes** | `make -C components/chess test` (also `make test-chess` here). |
 | Pure UI helpers (panel→square, FSM, dirty mask, calib math) | **Yes** | `host/ui/` — no LCD driver. |
 | `components/board` (SPI LCD/touch) | **No** (device) | `make flash-esp32-lcdtest` / `touchtest` / `touchcalib`. |
 | Full glass UI paint | Spot-check on device | After host FSM + API are green. |
@@ -90,28 +90,17 @@ esp32-chess/
   PLAN.md                      # this file
   docs/boards/esp32-2432s028r/ # copy/adapt from invaders
   components/
-    board/                     # copy from invaders: cyd_display, cyd_touch
-                               # drop invaders-specific cyd_input zones
-                               # extend touch: runtime calib + NVS (not hard-coded raw mins)
-    chess/                     # in-tree port + thin API (not a submodule yet)
-      include/chess_api.h      # start / try_move / think / undo / pole snapshot
-      src/chess_engine.cpp     # from upstream (Arduino deps stripped or shimmed)
-      src/chess_api.cpp
-      LICENSE
-    ui/                        # board draw, piece tiles, touch selection FSM, calib UI
-      include/chess_ui.h
-      src/chess_ui.c           # dirty mask + draw_square / draw_dirty / full redraw
-      src/touch_calib.c        # 4-corner wizard → board HAL set_calib
-      assets/                  # 24–30 px piece bitmaps (RGB565 or 1bpp masks)
+    board/                     # CYD: cyd_display, cyd_touch, calib NVS/wizard
+    chess/                     # git submodule → esp32-chess-lib
+    ui/                        # board draw, piece tiles, touch selection FSM
   host/
-    chess/                     # gcc tests against components/chess (TDD)
     ui/                        # gcc tests for square map / FSM / calib math
   main/
     main.c                     # app: init HAL → load calib → new game → UI loop
     main_lcdtest.c / main_touchtest.c / main_touchcalib.c
 ```
 
-Keep `components/chess` free of LCD/touch. Keep `components/board` free of chess rules. `ui` sits between them. Host tests never link IDF.
+Keep the chess lib free of LCD/touch. Keep `components/board` free of chess rules. `ui` sits between them. Host chess tests live in the submodule; UI math tests never link IDF.
 
 ## Engine integration (non-straightforward)
 
@@ -209,7 +198,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | Auto-enter calib once if NVS empty (hold-pen optional) | `done` (2026-08-25) | Plan already sketched; reduces “forgot to CAL” |
 | **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `done` (2026-08-25) | Cleaner if we ever dual-human or flip colors; app enforces White today |
 | **P2** | Document / harden single-owner access to engine | `done` (2026-08-25) | Needed if WiFi/UCI ever appears |
-| **P3** | Extract `components/chess` to a standalone lib repo | `todo` | After API boring (D2). Shape: **C lib** + host tests + benches (D6). Benches: fixed depth/node metrics (CPU-independent); optional wall-clock nps as secondary. API prep: FEN `const char*`, depth/node search + result struct, legal-move list; strip `String`/FreeRTOS from core. |
+| **P3** | Extract `components/chess` to a standalone lib repo | `done` (2026-08-25) | [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib) as git submodule `components/chess`. Host tests/benches + optional node-budget WAC in the lib. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `todo` | Prefer playtest first |
 
@@ -221,8 +210,9 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 13 | Auto-calib on empty NVS | `done` (2026-08-25) |
 | 14 | try_move for side-to-move | `done` (2026-08-25) |
 | 15 | Engine API mutex + docs | `done` (2026-08-25) |
+| 16 | Consume `esp32-chess-lib` as git submodule | `done` (2026-08-25) |
 
-**Do not reverse without cause:** D1–D6 (port this engine, in-tree first, GPL, TDD, dirty squares, C ABI for chess lib).
+**Do not reverse without cause:** D1, D3–D6; D2 now means consume the standalone lib (not re-vendor).
 
 ## Risks / gotchas to expect early
 
@@ -240,6 +230,6 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 ## Out of scope for v1
 
 - Dual human, online play, SD opening books, audio on GPIO26, Bluetooth, ILI9341 variants, WAC benchmark UI.
-- Separate chess-engine git repo / published IDF component — see backlog P3 (after D2: API stable; D6: C ABI + tests/benches).
 - Further features until **on-device gate** above is passed.
-- Converting the in-tree engine to pure C *before* extract — do that with the P3 lib cut, not as a separate firmware track.
+- Pure-C rewrite of engine internals (C ABI is enough; C++ engine body stays).
+- Publishing the lib as a Component Registry package (submodule is enough).

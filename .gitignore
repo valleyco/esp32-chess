@@ -30,9 +30,6 @@ compile_commands.json
 *.so
 
 # Host tests
-host/chess/test_stub
-host/chess/test_chess_api
-host/chess/bench_chess
 host/ui/test_stub
 host/ui/test_touch_calib
 host/ui/test_chess_ui
