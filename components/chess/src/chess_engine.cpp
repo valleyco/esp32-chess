@@ -70,6 +70,8 @@ int nullmove = 1;
 int multipov = 0;
 int futility = 1;
 int lazyeval = 1;
+/** Cap for iterative deepening in solve_step (default 20). */
+int search_max_level = 20;
 
 int depth = 0;
 int nulldepth;
@@ -2352,7 +2354,11 @@ boolean solve_step() {
   int ALPHA = -20000;
   int BETA = 20000;
   level = 2;
-  if (timelimith > 300000) level = 4;
+  /* Long time controls used to skip straight to depth 4; honor search_max_level. */
+  if (timelimith > 300000 && search_max_level >= 4)
+    level = 4;
+  if (level > search_max_level)
+    level = search_max_level;
   for (int x = 0; x < MAXDEPTH; x++) {
     pos[x].best.f1 = 0;
     pos[x].best.c2 = -1;
@@ -2360,7 +2366,12 @@ boolean solve_step() {
 
   stats = 1;
 
-  while (level <= 20) {
+  if (search_max_level < 2)
+    search_max_level = 2;
+  if (search_max_level > 20)
+    search_max_level = 20;
+
+  while (level <= search_max_level) {
     if (TRACE > 0) {
       Serial.print(F("******* LEVEL="));
       Serial.print(level);

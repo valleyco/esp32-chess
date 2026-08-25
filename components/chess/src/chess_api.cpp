@@ -2,6 +2,9 @@
 
 #include "chess_engine_internal.h"
 
+#include <cstdio>
+#include <cstring>
+
 #ifdef ESP_PLATFORM
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -61,9 +64,20 @@ static void ensure_engine_ready(void)
     }
 }
 
+static void reset_game_history(void)
+{
+    game_ply = 0;
+    game_pos = pos[0];
+    for (int i = 0; i < 64; i++)
+    {
+        game_pole[i] = pole[i];
+    }
+    game_w = pos[0].w ? 1 : 0;
+}
+
 static int promo_to_step_type(int promo)
 {
-    if (promo == 0)
+    if (promo == 0 || promo == CHESS_PIECE_QUEEN)
     {
         return 7;
     }
@@ -72,6 +86,16 @@ static int promo_to_step_type(int promo)
         promo = -promo;
     }
     return promo + 2;
+}
+
+static int step_type_to_promo(int type)
+{
+    if (type < 4)
+    {
+        return 0;
+    }
+    /* type 4..7 → NBRQ → 2..5 */
+    return type - 2;
 }
 
 static bool apply_step(const step_t &step)
@@ -109,18 +133,99 @@ static bool find_and_apply_move(int c1, int c2, int want_type, bool require_type
     return false;
 }
 
+static bool step_leaves_own_king_safe(step_t &s)
+{
+    movestep(0, s);
+    const int check = pos[0].w ? check_w() : check_b();
+    backstep(0, s);
+    return !check;
+}
+
+static bool run_search_and_apply(chess_search_result_t *out)
+{
+    halt = 0;
+    pos[0].best.c1 = -1;
+    solve_step();
+    if (pos[0].best.c1 == -1)
+    {
+        return false;
+    }
+
+    chess_search_result_t local = {};
+    local.c1 = pos[0].best.c1;
+    local.c2 = pos[0].best.c2;
+    local.promo = step_type_to_promo(pos[0].best.type);
+    local.depth = level;
+    local.nodes = count;
+    local.score = pos[0].best.weight;
+
+    generate_steps(0);
+    for (int i = 0; i < pos[0].n_steps; i++)
+    {
+        const step_t &s = pos[0].steps[i];
+        if (s.c1 == pos[0].best.c1 && s.c2 == pos[0].best.c2 &&
+            s.type == pos[0].best.type)
+        {
+            pos[0].cur_step = i;
+            movestep(0, pos[0].steps[i]);
+            movepos(0, pos[0].steps[i]);
+            game_steps[game_ply] = pos[0].steps[i];
+            pos[0] = pos[1];
+            game_ply++;
+            if (out)
+            {
+                *out = local;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 extern "C" void chess_new_game(void)
 {
     EngineGuard g;
     ensure_engine_ready();
-    fen(String("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -"));
-    game_ply = 0;
-    game_pos = pos[0];
-    for (int i = 0; i < 64; i++)
+    fen(String(CHESS_START_FEN));
+    reset_game_history();
+}
+
+extern "C" bool chess_set_fen(const char *fen_str)
+{
+    EngineGuard g;
+    ensure_engine_ready();
+    if (!fen_str || !fen_str[0])
     {
-        game_pole[i] = pole[i];
+        return false;
     }
-    game_w = 1;
+    if (!fen(String(fen_str)))
+    {
+        return false;
+    }
+    reset_game_history();
+    return true;
+}
+
+extern "C" int chess_get_fen(char *buf, size_t buflen)
+{
+    EngineGuard g;
+    ensure_engine_ready();
+    const String s = fenout(0);
+    const char *cs = s.c_str();
+    const size_t n = std::strlen(cs);
+    if (buf && buflen > 0)
+    {
+        if (n + 1 <= buflen)
+        {
+            std::memcpy(buf, cs, n + 1);
+        }
+        else
+        {
+            std::memcpy(buf, cs, buflen - 1);
+            buf[buflen - 1] = '\0';
+        }
+    }
+    return (int)n;
 }
 
 extern "C" bool chess_try_move(int c1, int c2, int promo)
@@ -168,24 +273,49 @@ extern "C" bool chess_is_promotion_move(int c1, int c2)
     return false;
 }
 
+extern "C" int chess_legal_moves(chess_move_t *out, int max_out)
+{
+    EngineGuard g;
+    ensure_engine_ready();
+    if (max_out < 0)
+    {
+        max_out = 0;
+    }
+    generate_steps(0);
+    int n = 0;
+    for (int i = 0; i < pos[0].n_steps; i++)
+    {
+        step_t s = pos[0].steps[i];
+        if (!step_leaves_own_king_safe(s))
+        {
+            continue;
+        }
+        if (out && n < max_out)
+        {
+            out[n].c1 = s.c1;
+            out[n].c2 = s.c2;
+            out[n].promo = step_type_to_promo(s.type);
+        }
+        n++;
+    }
+    return n;
+}
+
 extern "C" chess_status_t chess_status(void)
 {
     EngineGuard g;
     ensure_engine_ready();
     generate_steps(0);
     int legal = 0;
-    int in_check = 0;
     for (int i = 0; i < pos[0].n_steps; i++)
     {
-        movestep(0, pos[0].steps[i]);
-        const int check = pos[0].w ? check_w() : check_b();
-        if (!check)
+        step_t s = pos[0].steps[i];
+        if (step_leaves_own_king_safe(s))
         {
             legal++;
         }
-        backstep(0, pos[0].steps[i]);
     }
-    in_check = pos[0].w ? check_w() : check_b();
+    const int in_check = pos[0].w ? check_w() : check_b();
     if (legal > 0)
     {
         return CHESS_STATUS_OK;
@@ -193,36 +323,36 @@ extern "C" chess_status_t chess_status(void)
     return in_check ? CHESS_STATUS_CHECKMATE : CHESS_STATUS_STALEMATE;
 }
 
-extern "C" bool chess_think(unsigned timeout_ms)
+extern "C" bool chess_think_time(unsigned timeout_ms, chess_search_result_t *out)
 {
     EngineGuard g;
     ensure_engine_ready();
-    timelimith = timeout_ms;
-    halt = 0;
-    pos[0].best.c1 = -1;
-    solve_step();
-    if (pos[0].best.c1 == -1)
-    {
-        return false;
-    }
+    timelimith = timeout_ms ? timeout_ms : 1;
+    search_max_level = 20;
+    return run_search_and_apply(out);
+}
 
-    generate_steps(0);
-    for (int i = 0; i < pos[0].n_steps; i++)
+extern "C" bool chess_think_depth(int max_depth, chess_search_result_t *out)
+{
+    EngineGuard g;
+    ensure_engine_ready();
+    if (max_depth < 2)
     {
-        const step_t &s = pos[0].steps[i];
-        if (s.c1 == pos[0].best.c1 && s.c2 == pos[0].best.c2 &&
-            s.type == pos[0].best.type)
-        {
-            pos[0].cur_step = i;
-            movestep(0, pos[0].steps[i]);
-            movepos(0, pos[0].steps[i]);
-            game_steps[game_ply] = pos[0].steps[i];
-            pos[0] = pos[1];
-            game_ply++;
-            return true;
-        }
+        max_depth = 2;
     }
-    return false;
+    if (max_depth > 20)
+    {
+        max_depth = 20;
+    }
+    search_max_level = max_depth;
+    /* Large limit so depth, not wall clock, stops the search. */
+    timelimith = 24UL * 60UL * 60UL * 1000UL;
+    return run_search_and_apply(out);
+}
+
+extern "C" bool chess_think(unsigned timeout_ms)
+{
+    return chess_think_time(timeout_ms, nullptr);
 }
 
 extern "C" bool chess_undo(void)

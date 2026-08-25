@@ -36,8 +36,12 @@ extern boolean game_w;
 extern short game_pole[64];
 extern unsigned long timelimith;
 extern boolean halt;
+extern int search_max_level;
+extern unsigned long count;
+extern int level;
 
 boolean fen(String ss);
+String fenout(int l);
 void generate_steps(int l);
 void movestep(int l, step_t &s);
 void movepos(int l, step_t &s);
@@ -45,3 +49,4 @@ void backstep(int l, step_t &s);
 boolean solve_step();
 boolean check_w();
 boolean check_b();
+void sort_steps(int l);

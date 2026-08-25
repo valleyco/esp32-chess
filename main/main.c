@@ -224,16 +224,16 @@ static void on_strip_tap(ui_strip_hit_t hit)
         switch (hit)
         {
         case UI_STRIP_PROMO_Q:
-            complete_promo(5);
+            complete_promo(CHESS_PROMO_QUEEN);
             break;
         case UI_STRIP_PROMO_R:
-            complete_promo(4);
+            complete_promo(CHESS_PROMO_ROOK);
             break;
         case UI_STRIP_PROMO_B:
-            complete_promo(3);
+            complete_promo(CHESS_PROMO_BISHOP);
             break;
         case UI_STRIP_PROMO_N:
-            complete_promo(2);
+            complete_promo(CHESS_PROMO_KNIGHT);
             break;
         default:
             break;

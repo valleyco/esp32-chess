@@ -90,6 +90,14 @@ Board paint is **square-level dirty** (`last_drawn[64]`), not a full framebuffer
 only call into it when the think worker is idle (except the worker’s own
 `chess_think`); do not touch engine globals outside `chess_api`.
 
+API notes (in-tree hardening toward a future C lib):
+
+- `chess_set_fen` / `chess_get_fen` — `const char*` FEN I/O
+- `chess_think_time` / `chess_think_depth` — play vs fixed-depth (bench-friendly);
+  optional `chess_search_result_t` (move, depth, nodes, score)
+- `chess_legal_moves` — legal list for the side to move
+- `CHESS_PIECE_*` / `CHESS_PROMO_*` — piece/promo constants
+
 ## License and attribution
 
 This firmware **links a GPL-3.0 chess engine**. If you distribute binaries or a

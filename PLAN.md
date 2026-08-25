@@ -63,6 +63,7 @@ flowchart TB
 | D3 | License | **GPL-3** for this firmware if we vendor/link the engine; keep LICENSE + attribution. |
 | D4 | Process | **TDD** — host `gcc` tests for `chess` / pure `ui` helpers before wiring LCD. Device probes only for HAL. |
 | D5 | Board paint | **Square-level dirty redraw** — shadow `last_drawn[64]`; only repaint changed / highlighted squares via `fill_rect` + piece sprite. No full RGB565 framebuffer; not invaders 1bpp row-dirty. |
+| D6 | Chess lib language | **C ABI** for the public API. Engine logic is procedural (globals + functions); no requirement for C++ classes. Arduino `String` / `Serial` / IDF mutex stay out of a future standalone core (shim or app concern). Optional C++ only as an internal implementation detail if useful — not in the public surface. |
 
 ## TDD process
 
@@ -208,7 +209,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | Auto-enter calib once if NVS empty (hold-pen optional) | `done` (2026-08-25) | Plan already sketched; reduces “forgot to CAL” |
 | **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `done` (2026-08-25) | Cleaner if we ever dual-human or flip colors; app enforces White today |
 | **P2** | Document / harden single-owner access to engine | `done` (2026-08-25) | Needed if WiFi/UCI ever appears |
-| **P3** | Extract `components/chess` to a standalone lib repo | `todo` | After API boring (D2) |
+| **P3** | Extract `components/chess` to a standalone lib repo | `todo` | After API boring (D2). Shape: **C lib** + host tests + benches (D6). Benches: fixed depth/node metrics (CPU-independent); optional wall-clock nps as secondary. API prep: FEN `const char*`, depth/node search + result struct, legal-move list; strip `String`/FreeRTOS from core. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `todo` | Prefer playtest first |
 
@@ -221,7 +222,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 14 | try_move for side-to-move | `done` (2026-08-25) |
 | 15 | Engine API mutex + docs | `done` (2026-08-25) |
 
-**Do not reverse without cause:** D1–D5 (port this engine, in-tree first, GPL, TDD, dirty squares).
+**Do not reverse without cause:** D1–D6 (port this engine, in-tree first, GPL, TDD, dirty squares, C ABI for chess lib).
 
 ## Risks / gotchas to expect early
 
@@ -239,5 +240,6 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 ## Out of scope for v1
 
 - Dual human, online play, SD opening books, audio on GPIO26, Bluetooth, ILI9341 variants, WAC benchmark UI.
-- Separate chess-engine git repo / published IDF component — see backlog P3 (after D2: API stable).
+- Separate chess-engine git repo / published IDF component — see backlog P3 (after D2: API stable; D6: C ABI + tests/benches).
 - Further features until **on-device gate** above is passed.
+- Converting the in-tree engine to pure C *before* extract — do that with the P3 lib cut, not as a separate firmware track.
