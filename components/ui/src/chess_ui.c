@@ -7,29 +7,44 @@
 #include "ui_font.h"
 #include "ui_pieces.h"
 
-/* RGB565 */
+/* RGB565 — strip palette */
 #define C_LIGHT 0xC616
 #define C_DARK 0x5AEB
 #define C_HI 0xFE60
-#define C_STRIP 0x2104
-#define C_BUSY 0xFE60
-#define C_BTN 0x39E7
+#define C_STRIP 0x18C3      /* deep slate */
+#define C_STRIP_GAP 0x10A2  /* darker gutter between buttons */
+#define C_BUSY 0xFDC0       /* warm amber */
+#define C_BTN_NEW 0x1C6B    /* green */
+#define C_BTN_UNDO 0xB2E0   /* amber */
+#define C_BTN_CAL 0x2A57    /* blue */
+#define C_BTN_TIME 0x4A2F   /* purple */
 #define C_WHITE_P 0xFFFF
 #define C_BLACK_P 0x0000
 #define C_RED 0xF800
-#define C_BLUE 0x001F
-#define C_GREEN 0x07E0
+#define C_BLUE 0x3A7F
+#define C_GREEN 0x2E0A
 #define C_CYAN 0x07FF
-#define C_MAGENTA 0xF81F
+#define C_MAGENTA 0xD01F
+#define C_TEXT_ON_DARK 0xFFFF
+#define C_TEXT_ON_LIGHT 0x1082
+
+enum
+{
+    STRIP_DIRTY_SIDE = 1u << 0,
+    STRIP_DIRTY_BTNS = 1u << 1,
+    STRIP_DIRTY_BG = 1u << 2,
+    STRIP_DIRTY_ALL = STRIP_DIRTY_SIDE | STRIP_DIRTY_BTNS | STRIP_DIRTY_BG,
+};
 
 static int8_t s_last[64];
 static chess_dirty_mask_t s_dirty;
 static int s_highlight = -1;
-static bool s_strip_dirty = true;
+static unsigned s_strip_dirty = STRIP_DIRTY_ALL;
 static bool s_busy = false;
 static chess_ui_mode_t s_mode = UI_MODE_PLAY;
 static chess_status_t s_status = CHESS_STATUS_OK;
 static unsigned s_think_ms = 3000;
+static int s_drawn_side = -1; /* last painted side-to-move: 0/1, or -1 unknown */
 
 static uint16_t square_color(int sq, int highlight_sq)
 {
@@ -124,7 +139,12 @@ static void draw_btn(ui_strip_hit_t hit, uint16_t fill, const char *label,
     {
         return;
     }
+    /* Gutter behind button so partial redraws don't leave stale pixels. */
+    hal_display_fill_rect(UI_STRIP_X, y - 2, UI_STRIP_W, h + 4, C_STRIP_GAP);
     hal_display_fill_rect(x, y, w, h, fill);
+    /* 1px light top / left edge for a little depth. */
+    hal_display_fill_rect(x, y, w, 1, C_HI);
+    hal_display_fill_rect(x, y, 1, h, C_HI);
     if (label && label[0])
     {
         draw_label(x, y, w, h, label, scale, fg);
@@ -135,28 +155,26 @@ static const char *side_label(uint16_t *fg_out)
 {
     if (s_mode == UI_MODE_OVER)
     {
-        *fg_out = C_WHITE_P;
+        *fg_out = C_TEXT_ON_DARK;
         return (s_status == CHESS_STATUS_CHECKMATE) ? "MATE" : "DRAW";
     }
     if (s_busy)
     {
-        *fg_out = C_BLACK_P;
+        *fg_out = C_TEXT_ON_LIGHT;
         return "WAIT";
     }
     if (chess_side_to_move())
     {
-        *fg_out = C_BLACK_P;
+        *fg_out = C_TEXT_ON_LIGHT;
         return "W";
     }
-    *fg_out = C_WHITE_P;
+    *fg_out = C_TEXT_ON_DARK;
     return "B";
 }
 
-static void draw_strip(void)
+static void draw_strip_side(void)
 {
-    hal_display_fill_rect(UI_STRIP_X, 0, UI_STRIP_W, UI_PANEL_H, C_STRIP);
-
-    uint16_t side = C_BTN;
+    uint16_t side = C_BTN_TIME;
     if (s_mode == UI_MODE_OVER)
     {
         side = (s_status == CHESS_STATUS_CHECKMATE) ? C_RED : C_BLUE;
@@ -169,44 +187,62 @@ static void draw_strip(void)
     {
         side = chess_side_to_move() ? C_WHITE_P : C_BLACK_P;
     }
-    uint16_t side_fg = C_WHITE_P;
+    uint16_t side_fg = C_TEXT_ON_DARK;
     const char *side_txt = side_label(&side_fg);
     draw_btn(UI_STRIP_SIDE, side, side_txt, 2, side_fg);
+    s_drawn_side = chess_side_to_move();
+}
 
+static void draw_strip_btns(void)
+{
     if (s_mode == UI_MODE_PROMO)
     {
-        draw_btn(UI_STRIP_PROMO_Q, C_HI, "Q", 3, C_BLACK_P);
-        draw_btn(UI_STRIP_PROMO_R, C_CYAN, "R", 3, C_BLACK_P);
-        draw_btn(UI_STRIP_PROMO_B, C_GREEN, "B", 3, C_BLACK_P);
-        draw_btn(UI_STRIP_PROMO_N, C_MAGENTA, "N", 3, C_WHITE_P);
-    }
-    else
-    {
-        draw_btn(UI_STRIP_NEW, C_BTN, "NEW", 2, C_WHITE_P);
-        draw_btn(UI_STRIP_UNDO, C_BTN, "UNDO", 2, C_WHITE_P);
-        draw_btn(UI_STRIP_CALIB, C_BTN, "CAL", 2, C_WHITE_P);
-        /* TIME: think seconds as main label + width bar. */
-        int x, y, w, h;
-        chess_geom_strip_button_rect(UI_STRIP_TIME, &x, &y, &w, &h);
-        int secs = (int)(s_think_ms / 1000);
-        if (secs < 1)
-        {
-            secs = 1;
-        }
-        if (secs > 5)
-        {
-            secs = 5;
-        }
-        char time_label[4];
-        time_label[0] = (char)('0' + secs);
-        time_label[1] = 'S';
-        time_label[2] = '\0';
-        draw_btn(UI_STRIP_TIME, C_BTN, time_label, 2, C_WHITE_P);
-        const int bar = (w - 8) * secs / 5;
-        hal_display_fill_rect(x + 4, y + h - 8, bar, 4, C_HI);
+        draw_btn(UI_STRIP_PROMO_Q, C_HI, "Q", 3, C_TEXT_ON_LIGHT);
+        draw_btn(UI_STRIP_PROMO_R, C_CYAN, "R", 3, C_TEXT_ON_LIGHT);
+        draw_btn(UI_STRIP_PROMO_B, C_GREEN, "B", 3, C_TEXT_ON_DARK);
+        draw_btn(UI_STRIP_PROMO_N, C_MAGENTA, "N", 3, C_TEXT_ON_DARK);
+        return;
     }
 
-    s_strip_dirty = false;
+    draw_btn(UI_STRIP_NEW, C_BTN_NEW, "NEW", 2, C_TEXT_ON_DARK);
+    draw_btn(UI_STRIP_UNDO, C_BTN_UNDO, "UNDO", 2, C_TEXT_ON_LIGHT);
+    draw_btn(UI_STRIP_CALIB, C_BTN_CAL, "CAL", 2, C_TEXT_ON_DARK);
+
+    int x, y, w, h;
+    chess_geom_strip_button_rect(UI_STRIP_TIME, &x, &y, &w, &h);
+    int secs = (int)(s_think_ms / 1000);
+    if (secs < 1)
+    {
+        secs = 1;
+    }
+    if (secs > 5)
+    {
+        secs = 5;
+    }
+    char time_label[4];
+    time_label[0] = (char)('0' + secs);
+    time_label[1] = 'S';
+    time_label[2] = '\0';
+    draw_btn(UI_STRIP_TIME, C_BTN_TIME, time_label, 2, C_TEXT_ON_DARK);
+    const int bar = (w - 8) * secs / 5;
+    hal_display_fill_rect(x + 4, y + h - 8, bar, 4, C_HI);
+}
+
+static void draw_strip(void)
+{
+    if (s_strip_dirty & STRIP_DIRTY_BG)
+    {
+        hal_display_fill_rect(UI_STRIP_X, 0, UI_STRIP_W, UI_PANEL_H, C_STRIP);
+    }
+    if (s_strip_dirty & STRIP_DIRTY_SIDE)
+    {
+        draw_strip_side();
+    }
+    if (s_strip_dirty & STRIP_DIRTY_BTNS)
+    {
+        draw_strip_btns();
+    }
+    s_strip_dirty = 0;
 }
 
 void chess_ui_init(void)
@@ -214,17 +250,19 @@ void chess_ui_init(void)
     memset(s_last, 0, sizeof(s_last));
     chess_dirty_all(&s_dirty);
     s_highlight = -1;
-    s_strip_dirty = true;
+    s_strip_dirty = STRIP_DIRTY_ALL;
     s_busy = false;
     s_mode = UI_MODE_PLAY;
     s_status = CHESS_STATUS_OK;
     s_think_ms = 3000;
+    s_drawn_side = -1;
 }
 
 void chess_ui_invalidate_all(void)
 {
     chess_dirty_all(&s_dirty);
-    s_strip_dirty = true;
+    s_strip_dirty = STRIP_DIRTY_ALL;
+    s_drawn_side = -1;
 }
 
 void chess_ui_set_busy(bool busy)
@@ -234,7 +272,7 @@ void chess_ui_set_busy(bool busy)
         return;
     }
     s_busy = busy;
-    s_strip_dirty = true;
+    s_strip_dirty |= STRIP_DIRTY_SIDE;
 }
 
 void chess_ui_set_mode(chess_ui_mode_t mode)
@@ -244,13 +282,18 @@ void chess_ui_set_mode(chess_ui_mode_t mode)
         return;
     }
     s_mode = mode;
-    s_strip_dirty = true;
+    /* Promo ↔ play swaps the whole control column. */
+    s_strip_dirty |= STRIP_DIRTY_SIDE | STRIP_DIRTY_BTNS | STRIP_DIRTY_BG;
 }
 
 void chess_ui_set_status(chess_status_t st)
 {
+    if (s_status == st)
+    {
+        return;
+    }
     s_status = st;
-    s_strip_dirty = true;
+    s_strip_dirty |= STRIP_DIRTY_SIDE;
 }
 
 void chess_ui_set_think_ms(unsigned ms)
@@ -260,7 +303,7 @@ void chess_ui_set_think_ms(unsigned ms)
         return;
     }
     s_think_ms = ms;
-    s_strip_dirty = true;
+    s_strip_dirty |= STRIP_DIRTY_BTNS;
 }
 
 void chess_ui_sync_from_game(int highlight_sq)
@@ -285,7 +328,11 @@ void chess_ui_sync_from_game(int highlight_sq)
         s_highlight = highlight_sq;
     }
 
-    s_strip_dirty = true;
+    const int side = chess_side_to_move();
+    if (side != s_drawn_side)
+    {
+        s_strip_dirty |= STRIP_DIRTY_SIDE;
+    }
 }
 
 void chess_ui_paint(void)

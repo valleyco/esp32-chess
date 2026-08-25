@@ -25,19 +25,19 @@ void chess_ui_invalidate_all(void);
 /** Mark squares dirty from pole diff vs last_drawn; OR highlight square (-1 none). */
 void chess_ui_sync_from_game(int highlight_sq);
 
-/** Status strip shows "busy" (engine thinking). Triggers strip redraw. */
+/** Status strip shows "busy" (engine thinking). Redraws side badge only. */
 void chess_ui_set_busy(bool busy);
 
-/** Play / promotion picker / game-over strip layout. */
+/** Play / promotion picker / game-over strip layout (side + buttons). */
 void chess_ui_set_mode(chess_ui_mode_t mode);
 
-/** Game-over / info banner (mate, stalemate). */
+/** Game-over / info banner (mate, stalemate). Side badge only. */
 void chess_ui_set_status(chess_status_t st);
 
-/** Think-time shown on TIME button (milliseconds). */
+/** Think-time shown on TIME button (milliseconds). Buttons column only. */
 void chess_ui_set_think_ms(unsigned ms);
 
-/** Paint all dirty squares + strip if needed. Updates last_drawn. */
+/** Paint dirty squares + dirty strip regions (side / buttons / full). */
 void chess_ui_paint(void);
 
 /** Snapshot last_drawn (for host tests via separate build — device uses paint). */
