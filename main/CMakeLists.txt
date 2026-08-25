@@ -22,5 +22,5 @@ endif()
 idf_component_register(
     SRCS ${MAIN_SRCS}
     INCLUDE_DIRS ${MAIN_INCLUDE_DIRS}
-    PRIV_REQUIRES board chess ui esp_timer
+    PRIV_REQUIRES board chess ui esp_timer freertos
 )

@@ -6,8 +6,8 @@ ported from [hpsaturn/esp32-chess-engine](https://github.com/hpsaturn/esp32-ches
 
 ## Status
 
-Step 6 done: UI geom/FSM/dirty (host-tested) + dirty board paint.
-Host: `make test`. Firmware paints starting position then dirty e2e4 (flash when board connected).
+Step 7 done: touch select/move + engine think on worker (strip yellow while busy).
+Host: `make test`. Flash when connected: `make flash && make monitor`.
 
 See `PLAN.md`.
 

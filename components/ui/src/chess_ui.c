@@ -10,6 +10,7 @@
 #define C_DARK 0x5Aeb
 #define C_HI 0xFE60   /* selection */
 #define C_STRIP 0x2104
+#define C_BUSY 0xFE60
 #define C_WHITE_P 0xFFFF
 #define C_BLACK_P 0x0000
 #define C_OUTLINE 0x8410
@@ -18,6 +19,7 @@ static int8_t s_last[64];
 static chess_dirty_mask_t s_dirty;
 static int s_highlight = -1;
 static bool s_strip_dirty = true;
+static bool s_busy = false;
 
 static uint16_t square_color(int sq, int highlight_sq)
 {
@@ -69,9 +71,14 @@ static void draw_one_square(int sq)
 static void draw_strip(void)
 {
     hal_display_fill_rect(UI_STRIP_X, 0, UI_STRIP_W, UI_PANEL_H, C_STRIP);
-    /* Side indicator: top block white/black */
-    const uint16_t side = chess_side_to_move() ? C_WHITE_P : C_BLACK_P;
+    /* Side indicator: top block white/black (or busy yellow). */
+    const uint16_t side =
+        s_busy ? C_BUSY : (chess_side_to_move() ? C_WHITE_P : C_BLACK_P);
     hal_display_fill_rect(UI_STRIP_X + 16, 16, UI_STRIP_W - 32, 40, side);
+    if (s_busy)
+    {
+        hal_display_fill_rect(UI_STRIP_X + 16, 70, UI_STRIP_W - 32, 12, C_BUSY);
+    }
     s_strip_dirty = false;
 }
 
@@ -81,11 +88,22 @@ void chess_ui_init(void)
     chess_dirty_all(&s_dirty);
     s_highlight = -1;
     s_strip_dirty = true;
+    s_busy = false;
 }
 
 void chess_ui_invalidate_all(void)
 {
     chess_dirty_all(&s_dirty);
+    s_strip_dirty = true;
+}
+
+void chess_ui_set_busy(bool busy)
+{
+    if (s_busy == busy)
+    {
+        return;
+    }
+    s_busy = busy;
     s_strip_dirty = true;
 }
 

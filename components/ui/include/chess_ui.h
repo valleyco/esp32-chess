@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 #include <stdint.h>
 #include "chess_dirty.h"
 
@@ -15,6 +16,9 @@ void chess_ui_invalidate_all(void);
 
 /** Mark squares dirty from pole diff vs last_drawn; OR highlight square (-1 none). */
 void chess_ui_sync_from_game(int highlight_sq);
+
+/** Status strip shows "busy" (engine thinking). Triggers strip redraw. */
+void chess_ui_set_busy(bool busy);
 
 /** Paint all dirty squares + strip if needed. Updates last_drawn. */
 void chess_ui_paint(void);
