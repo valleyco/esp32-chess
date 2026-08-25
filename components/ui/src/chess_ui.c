@@ -5,6 +5,7 @@
 #include "chess_ui.h"
 #include "hal_display.h"
 #include "ui_font.h"
+#include "ui_pieces.h"
 
 /* RGB565 */
 #define C_LIGHT 0xC616
@@ -15,7 +16,6 @@
 #define C_BTN 0x39E7
 #define C_WHITE_P 0xFFFF
 #define C_BLACK_P 0x0000
-#define C_OUTLINE 0x8410
 #define C_RED 0xF800
 #define C_BLUE 0x001F
 #define C_GREEN 0x07E0
@@ -43,9 +43,23 @@ static uint16_t square_color(int sq, int highlight_sq)
     return light ? C_LIGHT : C_DARK;
 }
 
-static uint16_t piece_color(int8_t p)
+static uint16_t piece_fill(int8_t p)
 {
     return p > 0 ? C_WHITE_P : C_BLACK_P;
+}
+
+static uint16_t piece_outline(int8_t p)
+{
+    return p > 0 ? C_BLACK_P : C_WHITE_P;
+}
+
+static void piece_span(int x, int y, int w, uint16_t color, void *user)
+{
+    (void)user;
+    if (w > 0)
+    {
+        hal_display_fill_rect(x, y, w, 1, color);
+    }
 }
 
 static void draw_piece_glyph(int x, int y, int8_t p)
@@ -54,16 +68,11 @@ static void draw_piece_glyph(int x, int y, int8_t p)
     {
         return;
     }
-    const int abs_p = p > 0 ? p : -p;
-    const uint16_t fg = piece_color(p);
-    const int inset = 4 + (6 - abs_p);
-    hal_display_fill_rect(x + inset, y + inset, UI_SQUARE_PX - 2 * inset,
-                          UI_SQUARE_PX - 2 * inset, fg);
-    if (abs_p >= 5)
-    {
-        hal_display_fill_rect(x + UI_SQUARE_PX / 2 - 2, y + UI_SQUARE_PX / 2 - 2,
-                              4, 4, C_OUTLINE);
-    }
+    const int type = p > 0 ? p : -p;
+    const int ox = x + (UI_SQUARE_PX - UI_PIECE_PX) / 2;
+    const int oy = y + (UI_SQUARE_PX - UI_PIECE_PX) / 2;
+    ui_piece_draw(type, p > 0, ox, oy, piece_fill(p), piece_outline(p),
+                  piece_span, NULL);
 }
 
 static void draw_one_square(int sq)

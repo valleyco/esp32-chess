@@ -36,6 +36,7 @@ host/ui/test_stub
 host/ui/test_touch_calib
 host/ui/test_chess_ui
 host/ui/test_ui_font
+host/ui/test_ui_pieces
 
 # Local tools / misc
 *.swp

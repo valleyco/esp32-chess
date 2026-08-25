@@ -189,6 +189,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 8 | In-game Calibrate entry + polish: undo, new game, think-time, mate, promotion | `done` (2026-08-25) — strip NEW/UNDO/CAL/TIME, promo picker, mate/stale; built not flashed | extend host where pure |
 | 9 | Document flash/monitor, calib, `make test`, and GPL attribution in README | `done` (2026-08-25) | — |
 | 10 | Strip/promo bitmap font labels (5×7) | `done` (2026-08-25) | host glyph smoke |
+| 11 | Piece sprites (24×24 1bpp + outline) | `done` (2026-08-25) | host fill counts |
 
 **Gate:** on-device bring-up **passed** (2026-08-25) — lcdtest OK, touchcalib OK, main play OK.
 
@@ -198,7 +199,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 |---|---|---|---|
 | **P0** | On-device: `flash-esp32-lcdtest`, `touchcalib`, then main play | `done` (2026-08-25) | Proves ST7789, calib, FSM, dirty paint, think worker |
 | **P1** | Readable strip / promo labels (tiny bitmap font or icons) | `done` (2026-08-25) | Color-only NEW/UNDO/CAL/TIME and Q/R/B/N is unclear on first use |
-| **P1** | Real piece sprites (replace rect glyphs) | `todo` | Biggest visual UX win; keep dirty-square redraw |
+| **P1** | Real piece sprites (replace rect glyphs) | `done` (2026-08-25) | Biggest visual UX win; keep dirty-square redraw |
 | **P1** | Last-move highlight (from/to) | `todo` | Makes engine replies obvious without reading UART |
 | **P2** | Auto-enter calib once if NVS empty (hold-pen optional) | `todo` | Plan already sketched; reduces “forgot to CAL” |
 | **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `todo` | Cleaner if we ever dual-human or flip colors; app enforces White today |
@@ -210,7 +211,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | # | Step | Status |
 |---|---|---|
 | 10 | Strip/promo bitmap font labels | `done` (2026-08-25) |
-| 11 | Piece sprites | `todo` |
+| 11 | Piece sprites | `done` (2026-08-25) |
 | 12 | Last-move highlight | `todo` |
 
 **Do not reverse without cause:** D1–D5 (port this engine, in-tree first, GPL, TDD, dirty squares).
