@@ -34,7 +34,7 @@ void chess_ui_set_mode(chess_ui_mode_t mode);
 /** Game-over / info banner (mate, stalemate). Side badge only. */
 void chess_ui_set_status(chess_status_t st);
 
-/** Think-time shown on TIME button (milliseconds). Buttons column only. */
+/** Think-time shown on TIME button (milliseconds). TIME control only. */
 void chess_ui_set_think_ms(unsigned ms);
 
 /** Paint dirty squares + dirty strip regions (side / buttons / full). */

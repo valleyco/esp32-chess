@@ -31,9 +31,11 @@
 enum
 {
     STRIP_DIRTY_SIDE = 1u << 0,
-    STRIP_DIRTY_BTNS = 1u << 1,
-    STRIP_DIRTY_BG = 1u << 2,
-    STRIP_DIRTY_ALL = STRIP_DIRTY_SIDE | STRIP_DIRTY_BTNS | STRIP_DIRTY_BG,
+    STRIP_DIRTY_BTNS = 1u << 1, /* NEW/UNDO/CAL (+ promo column) */
+    STRIP_DIRTY_TIME = 1u << 2, /* TIME button / bar only */
+    STRIP_DIRTY_BG = 1u << 3,
+    STRIP_DIRTY_ALL =
+        STRIP_DIRTY_SIDE | STRIP_DIRTY_BTNS | STRIP_DIRTY_TIME | STRIP_DIRTY_BG,
 };
 
 static int8_t s_last[64];
@@ -193,20 +195,13 @@ static void draw_strip_side(void)
     s_drawn_side = chess_side_to_move();
 }
 
-static void draw_strip_btns(void)
+static void draw_strip_time(void)
 {
     if (s_mode == UI_MODE_PROMO)
     {
-        draw_btn(UI_STRIP_PROMO_Q, C_HI, "Q", 3, C_TEXT_ON_LIGHT);
-        draw_btn(UI_STRIP_PROMO_R, C_CYAN, "R", 3, C_TEXT_ON_LIGHT);
-        draw_btn(UI_STRIP_PROMO_B, C_GREEN, "B", 3, C_TEXT_ON_DARK);
         draw_btn(UI_STRIP_PROMO_N, C_MAGENTA, "N", 3, C_TEXT_ON_DARK);
         return;
     }
-
-    draw_btn(UI_STRIP_NEW, C_BTN_NEW, "NEW", 2, C_TEXT_ON_DARK);
-    draw_btn(UI_STRIP_UNDO, C_BTN_UNDO, "UNDO", 2, C_TEXT_ON_LIGHT);
-    draw_btn(UI_STRIP_CALIB, C_BTN_CAL, "CAL", 2, C_TEXT_ON_DARK);
 
     int x, y, w, h;
     chess_geom_strip_button_rect(UI_STRIP_TIME, &x, &y, &w, &h);
@@ -228,6 +223,23 @@ static void draw_strip_btns(void)
     hal_display_fill_rect(x + 4, y + h - 8, bar, 4, C_HI);
 }
 
+static void draw_strip_btns(void)
+{
+    if (s_mode == UI_MODE_PROMO)
+    {
+        draw_btn(UI_STRIP_PROMO_Q, C_HI, "Q", 3, C_TEXT_ON_LIGHT);
+        draw_btn(UI_STRIP_PROMO_R, C_CYAN, "R", 3, C_TEXT_ON_LIGHT);
+        draw_btn(UI_STRIP_PROMO_B, C_GREEN, "B", 3, C_TEXT_ON_DARK);
+        draw_strip_time();
+        return;
+    }
+
+    draw_btn(UI_STRIP_NEW, C_BTN_NEW, "NEW", 2, C_TEXT_ON_DARK);
+    draw_btn(UI_STRIP_UNDO, C_BTN_UNDO, "UNDO", 2, C_TEXT_ON_LIGHT);
+    draw_btn(UI_STRIP_CALIB, C_BTN_CAL, "CAL", 2, C_TEXT_ON_DARK);
+    draw_strip_time();
+}
+
 static void draw_strip(void)
 {
     if (s_strip_dirty & STRIP_DIRTY_BG)
@@ -241,6 +253,10 @@ static void draw_strip(void)
     if (s_strip_dirty & STRIP_DIRTY_BTNS)
     {
         draw_strip_btns();
+    }
+    else if (s_strip_dirty & STRIP_DIRTY_TIME)
+    {
+        draw_strip_time();
     }
     s_strip_dirty = 0;
 }
@@ -303,7 +319,7 @@ void chess_ui_set_think_ms(unsigned ms)
         return;
     }
     s_think_ms = ms;
-    s_strip_dirty |= STRIP_DIRTY_BTNS;
+    s_strip_dirty |= STRIP_DIRTY_TIME;
 }
 
 void chess_ui_sync_from_game(int highlight_sq)
