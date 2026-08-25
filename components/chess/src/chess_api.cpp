@@ -2,9 +2,6 @@
 
 #include "chess_engine_internal.h"
 
-#include <cstdio>
-#include <cstring>
-
 #ifdef ESP_PLATFORM
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -186,7 +183,7 @@ extern "C" void chess_new_game(void)
 {
     EngineGuard g;
     ensure_engine_ready();
-    fen(String(CHESS_START_FEN));
+    fen(CHESS_START_FEN);
     reset_game_history();
 }
 
@@ -198,7 +195,7 @@ extern "C" bool chess_set_fen(const char *fen_str)
     {
         return false;
     }
-    if (!fen(String(fen_str)))
+    if (!fen(fen_str))
     {
         return false;
     }
@@ -210,22 +207,7 @@ extern "C" int chess_get_fen(char *buf, size_t buflen)
 {
     EngineGuard g;
     ensure_engine_ready();
-    const String s = fenout(0);
-    const char *cs = s.c_str();
-    const size_t n = std::strlen(cs);
-    if (buf && buflen > 0)
-    {
-        if (n + 1 <= buflen)
-        {
-            std::memcpy(buf, cs, n + 1);
-        }
-        else
-        {
-            std::memcpy(buf, cs, buflen - 1);
-            buf[buflen - 1] = '\0';
-        }
-    }
-    return (int)n;
+    return fenout(0, buf, buflen);
 }
 
 extern "C" bool chess_try_move(int c1, int c2, int promo)

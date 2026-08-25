@@ -2,6 +2,8 @@
 
 #include "arduino_shim.h"
 
+#include <cstddef>
+
 const int CHESS_MAXSTEPS = 150;
 const int CHESS_MAXDEPTH = 30;
 
@@ -41,8 +43,8 @@ extern unsigned long count;
 extern int level;
 extern int lastbestdepth;
 
-boolean fen(String ss);
-String fenout(int l);
+boolean fen(const char *ss);
+int fenout(int l, char *buf, size_t buflen);
 void generate_steps(int l);
 void movestep(int l, step_t &s);
 void movepos(int l, step_t &s);

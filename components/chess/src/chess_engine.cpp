@@ -3,6 +3,9 @@
 
 #include "arduino_shim.h"
 
+#include <cstddef>
+#include <cstring>
+
 const signed char fp = 1;  // pawn
 const signed char fn = 2;  // knight
 const signed char fb = 3;  // bishop
@@ -51,7 +54,7 @@ struct packed_t {
 };
 packed_t polep;
 
-String fenstr;
+char fenstr[192];
 const int MAXEPD = 5;
 int bestcount = 0;
 step_t bestmove[MAXEPD];  //
@@ -619,82 +622,105 @@ String str_step(step_t st) {
 }
 
 //****************************
-String fenout(int l) {
-  String s = "";
+static int fen_putc(char *buf, size_t buflen, int pos, char ch)
+{
+  if (pos < 0)
+    return pos;
+  if (buf && buflen > 0 && (size_t)pos + 1 < buflen)
+    buf[pos] = ch;
+  return pos + 1;
+}
+
+static int fen_puts(char *buf, size_t buflen, int pos, const char *s)
+{
+  while (s && *s)
+    pos = fen_putc(buf, buflen, pos, *s++);
+  return pos;
+}
+
+int fenout(int l, char *buf, size_t buflen) {
+  int o = 0;
   for (int r = 0; r < 8; r++) {
-    if (r > 0) s = s + "/";
+    if (r > 0) o = fen_putc(buf, buflen, o, '/');
     int empty = 0;
     for (int c = 0; c < 8; c++) {
       int f = pole[c + r * 8];
       if (f == 0) empty++;
       if (f != 0 || c == 7)
         if (empty > 0) {
-          s = s + String(empty);
+          o = fen_putc(buf, buflen, o, (char)('0' + empty));
           empty = 0;
         }
       switch (f) {
         case fp:
-          s = s + "P";
+          o = fen_putc(buf, buflen, o, 'P');
           break;
         case -fp:
-          s = s + "p";
+          o = fen_putc(buf, buflen, o, 'p');
           break;
         case fn:
-          s = s + "N";
+          o = fen_putc(buf, buflen, o, 'N');
           break;
         case -fn:
-          s = s + "n";
+          o = fen_putc(buf, buflen, o, 'n');
           break;
         case fb:
-          s = s + "B";
+          o = fen_putc(buf, buflen, o, 'B');
           break;
         case -fb:
-          s = s + "b";
+          o = fen_putc(buf, buflen, o, 'b');
           break;
         case fr:
-          s = s + "R";
+          o = fen_putc(buf, buflen, o, 'R');
           break;
         case -fr:
-          s = s + "r";
+          o = fen_putc(buf, buflen, o, 'r');
           break;
         case fq:
-          s = s + "Q";
+          o = fen_putc(buf, buflen, o, 'Q');
           break;
         case -fq:
-          s = s + "q";
+          o = fen_putc(buf, buflen, o, 'q');
           break;
         case fk:
-          s = s + "K";
+          o = fen_putc(buf, buflen, o, 'K');
           break;
         case -fk:
-          s = s + "k";
+          o = fen_putc(buf, buflen, o, 'k');
           break;
       }
     }
   }
   if (pos[l].w == 1)
-    s = s + " w ";
+    o = fen_puts(buf, buflen, o, " w ");
   else
-    s = s + " b ";
+    o = fen_puts(buf, buflen, o, " b ");
   if (pos[l].wrk + pos[l].wrq + pos[l].brk + pos[l].brq == 0)
-    s = s + "-";
+    o = fen_putc(buf, buflen, o, '-');
   else {
-    if (pos[l].wrk) s = s + "K";
-    if (pos[l].wrq) s = s + "Q";
-    if (pos[l].brk) s = s + "k";
-    if (pos[l].brq) s = s + "q";
+    if (pos[l].wrk) o = fen_putc(buf, buflen, o, 'K');
+    if (pos[l].wrq) o = fen_putc(buf, buflen, o, 'Q');
+    if (pos[l].brk) o = fen_putc(buf, buflen, o, 'k');
+    if (pos[l].brq) o = fen_putc(buf, buflen, o, 'q');
   }
-  if (pos[l].pp != 0)
-    s = s + " " + str_pole(pos[l].pp);
-  else
-    s = s + " -";
-  return s;
+  if (pos[l].pp != 0) {
+    o = fen_putc(buf, buflen, o, ' ');
+    o = fen_putc(buf, buflen, o, (char)('a' + pos[l].pp % 8));
+    o = fen_putc(buf, buflen, o, (char)('0' + (8 - pos[l].pp / 8)));
+  } else
+    o = fen_puts(buf, buflen, o, " -");
+  if (buf && buflen > 0) {
+    size_t end = (size_t)o < buflen ? (size_t)o : buflen - 1;
+    buf[end] = '\0';
+  }
+  return o;
 }
 //****************************
-boolean fen(String ss) {
+boolean fen(const char *ss) {
+  if (!ss) return false;
   char s = 'x', i = 0, j = 0;
   boolean load = false;
-  for (int i = 0; i < 64; i++) pole[i] = 0;
+  for (int ii = 0; ii < 64; ii++) pole[ii] = 0;
   pos[0].w = 1;
   pos[0].wrk = 0;
   pos[0].wrq = 0;
@@ -704,7 +730,8 @@ boolean fen(String ss) {
   pos[0].cur_step = 0;
   pos[0].n_steps = 0;
   int spaces = 0;
-  for (int c = 0; c < ss.length(); c++) {
+  const int slen = (int)strlen(ss);
+  for (int c = 0; c < slen; c++) {
     s = ss[c];
     if (i > 7) {
       i = 0;
@@ -712,7 +739,7 @@ boolean fen(String ss) {
     }
     if (spaces == 3 && int(s) >= 'a' && int(s) <= 'h') {
       c++;
-      char s1 = ss[c];
+      char s1 = (c < slen) ? ss[c] : '\0';
       if (int(s1) >= '1' && int(s1) <= '8') {
         pos[0].pp = 8 * (7 - (int(s1) - int('1'))) + int(s) - int('a');
       }
@@ -827,8 +854,10 @@ boolean fen(String ss) {
   }
   if (!load)
     Serial.println(F("Error"));
-  else
-    fenstr = ss;
+  else {
+    strncpy(fenstr, ss, sizeof(fenstr) - 1);
+    fenstr[sizeof(fenstr) - 1] = '\0';
+  }
   return load;
 }
 //****************************
@@ -1659,11 +1688,12 @@ void epd() {
     bestmove[i].type = -1;
   }
   String ep;
-  int posbm = fenstr.indexOf("bm");
+  String fs(fenstr);
+  int posbm = fs.indexOf("bm");
   if (posbm > -1) {
-    int posp = fenstr.indexOf(";", posbm + 2);
-    if (posp == -1) posp = fenstr.length();
-    String ep = fenstr.substring(posbm + 3, posp);
+    int posp = fs.indexOf(";", posbm + 2);
+    if (posp == -1) posp = fs.length();
+    String ep = fs.substring(posbm + 3, posp);
     kingpositions();
     generate_steps(0);
     // show_steps(0);
@@ -2458,7 +2488,7 @@ unsigned int getpacked() {  //    hash
 
 //****************************
 int solvefen(String s) {
-  fen(s);
+  fen(s.c_str());
   Serial.println(s);
   epd();
   int ret = solve_step();
@@ -3596,7 +3626,7 @@ void WAC(int numwac = 0) {  // WAC tests
   if (numwac != 0) {
     String s;
     s = wacs[numwac - 1];
-    fen(s);
+    fen(s.c_str());
     show_position();
     solvefen(s);
     return;
@@ -3771,13 +3801,17 @@ void loop() {
   } else {
     // timelimith=180*60*1000; //180 .
     halt = 0;
-    fen(s);
+    fen(s.c_str());
     show_position();
     solvefen(s);
     Serial.println("move=" + str_step(pos[0].best));
     movestep(0, pos[0].best);
     movepos(0, pos[0].best);
-    Serial.println(fenout(1));
+    {
+      char fbuf[160];
+      fenout(1, fbuf, sizeof(fbuf));
+      Serial.println(fbuf);
+    }
     delay(1000);
   }
   delay(100);

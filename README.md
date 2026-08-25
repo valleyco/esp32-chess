@@ -93,7 +93,7 @@ only call into it when the think worker is idle (except the worker’s own
 
 API notes (in-tree hardening toward a future C lib):
 
-- `chess_set_fen` / `chess_get_fen` — `const char*` FEN I/O
+- `chess_set_fen` / `chess_get_fen` — `const char*` FEN I/O (no Arduino `String` on this path)
 - `chess_think_time` / `chess_think_depth` — play vs fixed-depth (bench-friendly);
   optional `chess_search_result_t` (move, depth, nodes, score)
 - `chess_legal_moves` — legal list for the side to move
