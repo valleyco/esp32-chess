@@ -1,0 +1,5 @@
+# Shared defaults for all targets (overridden by sdkconfig.defaults.<target>).
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_FREERTOS_HZ=1000
+CONFIG_PARTITION_TABLE_SINGLE_APP=y

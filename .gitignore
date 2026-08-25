@@ -1,0 +1,42 @@
+# ESP-IDF
+build/
+build-esp32/
+build-esp32-lcdtest/
+build-esp32-touchtest/
+build-esp32-touchcalib/
+sdkconfig
+sdkconfig.old
+sdkconfig.esp32
+sdkconfig.*.old
+managed_components/
+dependencies.lock
+
+# Generated LCD probe assets (host/lcdtest/make_panel_bmp.py)
+lcd_test_320x240.bmp
+host/lcdtest/generated/
+
+# IDE
+.vscode/
+*.code-workspace
+.idea/
+compile_commands.json
+
+# Binaries / objects
+*.elf
+*.bin
+*.map
+*.o
+*.a
+*.so
+
+# Host tests
+host/chess/test_stub
+host/chess/test_chess_api
+host/ui/test_stub
+host/ui/test_touch_calib
+host/ui/test_chess_ui
+
+# Local tools / misc
+*.swp
+*~
+.DS_Store

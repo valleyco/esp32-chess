@@ -1,0 +1,208 @@
+# ESP32 Chess on CYD — high-level plan
+
+**This file:** `/home/davidl/Projects/esp32-chess/PLAN.md` (repo root; canonical living plan).
+
+Work it interactively. **Do not start a step until we agree it.**
+After each discussion, update decisions and step status here.
+
+Statuses: `todo` · `discuss` · `agreed` · `in progress` · `done`
+
+---
+
+## What we’re integrating
+
+| Piece | Reality |
+|---|---|
+| Board | [`../esp32-invaders/docs/boards/esp32-2432s028r/BOARD.md`](../esp32-invaders/docs/boards/esp32-2432s028r/BOARD.md) — classic ESP32, **ST7789** 320×240, **XPT2046** on a separate SPI bus |
+| Engine | Local clone: [`../esp32-chess-engine`](../esp32-chess-engine) — **one** Arduino file (`src/chess_engine.cpp`, ~3.8k lines), PlatformIO, **serial console only** |
+| This repo | Greenfield: `/home/davidl/Projects/esp32-chess` |
+
+Upstream is **not** a drop-in library. It is a full sketch: `setup`/`loop`, `Serial` FEN/`game`/`WAC`/`TIME` commands, Arduino `String`, global `pole[64]` / `pos[]` / `solve_step()`. UI, display, and touch must be built here.
+
+License: engine is **GPL-3.0** (Hackster original is GPL3+). Porting/modifying is allowed; if we **distribute** firmware that links this code, the combined work must stay GPL-compatible, with LICENSE + attribution (Urusov / hpsaturn) and source for what we ship. ESP-IDF (Apache 2.0) is GPL-3 compatible. Personal on-device use has no distribution duty.
+
+```mermaid
+flowchart TB
+  subgraph testhost [Host tests]
+    HostChess[host/chess gcc]
+    HostUi[host/ui gcc]
+  end
+  subgraph host [Firmware host]
+    Main[main FreeRTOS]
+    UI[ui touch chessboard]
+    BoardHAL[board HAL ST7789 + XPT2046]
+  end
+  subgraph engine [components/chess]
+    API[chess_api thin wrapper]
+    Core[chess_engine.cpp search + rules]
+  end
+  HostChess --> API
+  HostUi --> UI
+  Main --> UI
+  UI --> BoardHAL
+  UI --> API
+  API --> Core
+```
+
+## Chosen approach (defaults)
+
+- **ESP-IDF** (not PlatformIO/Arduino), mirroring [`../esp32-invaders`](../esp32-invaders): reuse verified CYD pins, ST7789 transforms, touch mapping, and Makefile flash flow.
+- **TDD** for pure logic (chess API, square mapping, touch FSM, calib math). Write host tests first; implement until green. Device lcd/touch probes are bring-up checks, not a substitute for host tests.
+- **Port this engine, in-tree first.** Do not rewrite search/rules and do not pull Stockfish-class code onto classic ESP32. Copy sources + LICENSE into `components/chess/`, peel the sketch into `chess_api`, strip Arduino. Do **not** depend on upstream’s `loop()` UI.
+- **No separate engine repo in v1.** A standalone lib is the right *end* shape, but the current code is a 3.8k-line sketch, not a library. Extract to its own repo only after `chess_api` has stopped moving (and/or a second consumer appears).
+- **Gameplay v1:** human White vs engine Black; touch from-square → to-square; short think time (~2–5 s, `TIME`-style); undo + new game in a side strip.
+- **No full 320×240 framebuffer** (153 KB RGB565) — classic ESP32 RAM is tight with engine BSS (`pos[MAXDEPTH]` + `game_steps[1000]` alone is tens of KB). Draw with rect fills + small piece sprites / glyph blits (same spirit as invaders row/rect HAL).
+
+## Decisions
+
+| ID | Topic | Choice |
+|---|---|---|
+| D1 | Engine source | **Port** `../esp32-chess-engine` (Urusov / hpsaturn). Not a rewrite; not a heavier engine. |
+| D2 | Where it lives | **In-tree** `components/chess/` until the API is boring. Split to a separate lib repo later, not first. |
+| D3 | License | **GPL-3** for this firmware if we vendor/link the engine; keep LICENSE + attribution. |
+| D4 | Process | **TDD** — host `gcc` tests for `chess` / pure `ui` helpers before wiring LCD. Device probes only for HAL. |
+| D5 | Board paint | **Square-level dirty redraw** — shadow `last_drawn[64]`; only repaint changed / highlighted squares via `fill_rect` + piece sprite. No full RGB565 framebuffer; not invaders 1bpp row-dirty. |
+
+## TDD process
+
+Same spirit as invaders: logic compiles on Linux with `gcc` and on ESP32 with IDF.
+
+| Layer | Host-testable? | How |
+|---|---|---|
+| `components/chess` (`chess_api` + engine) | **Yes** | `host/chess/` — no Arduino, no IDF. Assert new game, legal moves, think, undo, FEN/pole. |
+| Pure UI helpers (panel→square, FSM, dirty mask, calib math) | **Yes** | `host/ui/` — no LCD driver. |
+| `components/board` (SPI LCD/touch) | **No** (device) | `make flash-esp32-lcdtest` / `touchtest` / `touchcalib`. |
+| Full glass UI paint | Spot-check on device | After host FSM + API are green. |
+
+**Rule:** for Steps that touch `chess_api` or pure UI math — **red tests first**, then implement. Do not “port then maybe test.”
+
+`make test` (or `make test-chess` / `make test-ui`) must stay green on the host before claiming a logic step done.
+
+## Proposed project structure
+
+```text
+esp32-chess/
+  CMakeLists.txt
+  Makefile                     # build / flash / monitor / lcdtest / touchtest / test
+  README.md
+  PLAN.md                      # this file
+  docs/boards/esp32-2432s028r/ # copy/adapt from invaders
+  components/
+    board/                     # copy from invaders: cyd_display, cyd_touch
+                               # drop invaders-specific cyd_input zones
+                               # extend touch: runtime calib + NVS (not hard-coded raw mins)
+    chess/                     # in-tree port + thin API (not a submodule yet)
+      include/chess_api.h      # start / try_move / think / undo / pole snapshot
+      src/chess_engine.cpp     # from upstream (Arduino deps stripped or shimmed)
+      src/chess_api.cpp
+      LICENSE
+    ui/                        # board draw, piece tiles, touch selection FSM, calib UI
+      include/chess_ui.h
+      src/chess_ui.c           # dirty mask + draw_square / draw_dirty / full redraw
+      src/touch_calib.c        # 4-corner wizard → board HAL set_calib
+      assets/                  # 24–30 px piece bitmaps (RGB565 or 1bpp masks)
+  host/
+    chess/                     # gcc tests against components/chess (TDD)
+    ui/                        # gcc tests for square map / FSM / calib math
+  main/
+    main.c                     # app: init HAL → load calib → new game → UI loop
+    main_lcdtest.c / main_touchtest.c / main_touchcalib.c
+```
+
+Keep `components/chess` free of LCD/touch. Keep `components/board` free of chess rules. `ui` sits between them. Host tests never link IDF.
+
+## Engine integration (non-straightforward)
+
+1. **Peel the sketch into an API** — expose roughly:
+   - `chess_new_game()` — current start FEN path inside `game()`
+   - `chess_try_human_move(c1, c2, promo)` — match legal moves from `generate_steps` + `movestep`/`movepos`
+   - `chess_think(timeout_ms)` → best `step_t` then apply
+   - `chess_undo()` — existing `back` logic
+   - `chess_get_square(i)` / FEN out for debug
+2. **TDD the API on host** — first failing tests for start position, e2e4 legal, illegal rejection, short think returns a legal black reply, undo restores. Only then deepen the peel / shims until green.
+3. **Arduino surface area** — file uses `Arduino.h`, `String`, `Serial`, `millis`, `boolean`, `xTaskCreate`. On IDF (and host) either:
+   - minimal shims (`String` → `std::string`, `Serial` → no-op/`ESP_LOG`/stderr, `millis` → `esp_timer` / `clock_gettime`), or
+   - compile with Arduino-ESP32 IDF component (heavier; only if shims fight you).
+   Prefer **shims + delete serial CLI** (`load_usb`, WAC suite can stay behind `#ifdef` for host/debug later).
+4. **Globals / non-reentrancy** — one search at a time; UI must not call `try_move` while `think` runs.
+5. **Latency** — `solve_step()` blocks until `timelimith` or depth. Run think on a **worker task**; UI shows “thinking…” and still paints; wire `halt` for cancel if needed (upstream already has halt via `taskOne` / serial STOP).
+6. **RAM** — prefer streaming/partial draws; keep `MAXDEPTH`/`MAXSTEPS` as upstream unless OOM; measure heap after linking before adding WiFi/SD/audio.
+
+## UI / touch on 320×240
+
+- Board: **240×240** (30 px squares) left-aligned or centered; **80 px** strip for status (side to move, last move, New / Undo / Calibrate / level).
+- Touch FSM: idle → select source (legal highlights optional) → select dest → promote dialog if needed → engine thinks → animate or instant refresh.
+- Coord map: panel (x,y) → square index matching engine’s `pole[64]` (a8=0 … h1=63). **Host-test the map** before trusting glass.
+- Pieces: simple bitmap set (Unicode-style chess glyphs or hand-drawn 1bpp); color by sign of `pole[i]`.
+
+### Dirty board redraw (D5)
+
+Do **not** blit the whole 240×240 board every frame. Chess changes a few squares per ply; classic ESP32 has no spare 153 KB RGB565 FB.
+
+| Piece | Role |
+|---|---|
+| `last_drawn[64]` | Shadow of what is on glass (same ±piece encoding as `pole[]`) |
+| Dirty set | Squares where `pole[i] != last_drawn[i]`, plus selection / hint / clear-old-highlight indices |
+| `ui_draw_square(i)` | Light/dark fill + piece sprite (or empty) via `hal_display_fill_rect` (+ sprite blit) |
+| `ui_draw_dirty()` | For each dirty index: draw square, then `last_drawn[i] = pole[i]` |
+| Full redraw | New game, first paint, return from calib: mark all 64 dirty once |
+| Status strip | Separate; redraw when side / last move / status text changes (cheap band) |
+
+**Host-testable (Step 6):** given old/new `pole[]` (+ optional highlight set) → dirty mask bits. Assert e2e4 dirties only squares 52 and 36; highlight toggle dirties old+new selection.
+
+Not invaders `screen_dirty` (1bpp row mask for full VRAM frames) — wrong grain for piece UI.
+
+Reuse board docs/HAL from invaders; **do not** reuse invaders touch *zones* (CREDIT/LEFT/etc.) — chess needs an 8×8 hit map.
+
+### Touch calibration (required)
+
+Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no axis swap — fine for large control pads, shaky for **30 px** chess squares. Chess needs a **user-runnable calibration**.
+
+**What to store** (NVS, e.g. namespace `touch`): raw extents for the four corners (or min/max X/Y after sampling), optional axis swap / mirror flags, Z press threshold. Apply in `hal_touch_sample` instead of fixed `#define`s; ship invaders defaults as factory fallback when NVS is empty/corrupt.
+
+**Host-testable:** given four corner raw samples → computed min/max / flip flags; reject nonsense ranges. Wizard paint + NVS I/O stay on device.
+
+**How the user runs it**
+
+| Entry | Purpose |
+|---|---|
+| In-game **Calibrate** in the side strip | Normal path after first boot or if squares feel off |
+| `make flash-esp32-touchcalib` | Dedicated firmware probe (like touchtest) for bring-up without the full game |
+| Optional: hold pen on boot / empty NVS | Auto-enter wizard once if no saved calib |
+
+**Wizard flow (4-point):** show targets near TL / TR / BL / BR (inset ~12–20 px from edges) → average several pressed samples per corner (debounce / ignore jitter) → compute affine or axis-aligned min/max map into panel 320×240 → confirm with a short “draw to test” screen → **Save** to NVS or **Retry**. Reject nonsense ranges (min≈max, inverted without flip flags).
+
+**HAL API additions** (sketch): `hal_touch_set_calib(...)`, `hal_touch_get_calib(...)`, `hal_touch_load_nvs()` / `hal_touch_save_nvs()` — keep NVS I/O in board or a tiny helper so `ui` only drives the wizard screens.
+
+## Build / bring-up steps
+
+| # | Step | Status | TDD? |
+|---|---|---|---|
+| 1 | Scaffold IDF project + Makefile (classic ESP32 / `/dev/ttyUSB0`) + empty `host/` + `make test` stub | `done` (2026-08-25) | stub only |
+| 2 | Copy `components/board` + board docs from invaders; flash lcdtest/touchtest | `done` (2026-08-25) — builds green; flash when `/dev/ttyUSB0` present | device |
+| 3 | Touch calib math + HAL: host tests for map from corners; then NVS + `main_touchcalib` | `done` (2026-08-25) — host 24 asserts green; touchcalib/touchtest built (not flashed) | host math first |
+| 4 | `chess_api` host tests (red): new game / try_move / think / undo / pole | `done` (2026-08-25) — 24 asserts green | **red first** |
+| 5 | Vendor engine + shims; implement API until host tests green; IDF link smoke | `done` (2026-08-25) — host green; build-esp32 links `chess_new_game()` | green host, then device |
+| 6 | Host tests: panel→square, touch FSM, **dirty mask** (e2e4 → sq 52+36); then `ui` draw_square / draw_dirty from `pole[]` | `done` (2026-08-25) — host 33 asserts; firmware paints start + dirty e2e4 (not flashed) | **red first** |
+| 7 | Wire touch selection + human moves; engine reply on worker task | `todo` | host FSM green first |
+| 8 | In-game Calibrate entry + polish: undo, new game, think-time, mate, promotion | `todo` | extend host where pure |
+| 9 | Document flash/monitor, calib, `make test`, and GPL attribution in README | `todo` | — |
+| — | Later: extract `components/chess` to a standalone lib repo | `out of scope` (v1) | — |
+
+## Risks / gotchas to expect early
+
+- **Framework mismatch** is the main cost: upstream is PlatformIO Arduino; board HAL you trust is ESP-IDF. Bridging that is the project’s first real work, not drawing a board.
+- **CYD driver myth**: listings say ILI9341; your unit is ST7789 with specific `swap_xy` / `mirror_x` — copy invaders verified config, don’t “generic CYD” tutorials blindly.
+- **LCD vs touch SPI hosts must stay separate** (SPI2 vs SPI3 on this pinout).
+- **GPIO36/39**: no internal pulls (touch MISO/IRQ).
+- **Resistive touch drift / unit variance**: hard-coded raw ranges will mis-hit squares; calibration + NVS is mandatory for playable chess. Recalibrate after case flex or if a different CYD unit is used.
+- **Engine quality / time**: ~20 kN/s class, no hash tables (commented out — “not enough RAM”); fine for casual play; deep search feels slow — default short `timelimith`. Host think tests should use a short timeout.
+- **Known engine bugs**: upstream issue — illegal moves still allowed when in check on the human path; no 50-move draw. Prefer applying only moves from `generate_steps()` by square indices (not SAN/`getbm`) so the UI stays on the legal list — and **assert that in host tests**.
+- **Promotion / castling / en passant**: already in engine `step_t.type`; UI must pass type for underpromotion and show castling as king move (engine handles rook).
+- **GPL-3**: keep LICENSE; if you publish the repo, source must ship.
+- **Design history**: authored as a serial coprocessor (GUI elsewhere); early LVGL work was abandoned — expect to own all glass UI.
+
+## Out of scope for v1
+
+- Dual human, online play, SD opening books, audio on GPIO26, Bluetooth, ILI9341 variants, WAC benchmark UI.
+- Separate chess-engine git repo / published IDF component (revisit after D2: API stable).

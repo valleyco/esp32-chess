@@ -1,0 +1,3 @@
+# Classic ESP32 (e.g. CYD / DevKit with CH340). Flash size matched to plugged board (4MB).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
