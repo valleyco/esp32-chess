@@ -2,9 +2,17 @@
 #include "chess_dirty.h"
 #include "chess_fsm.h"
 #include "chess_geom.h"
+#include "chess_hints.h"
 
-enum
+/* chess_hints.c also defines chess_hints_collect → needs this symbol. */
+int chess_legal_moves(chess_move_t *out, int max_out)
 {
+    (void)out;
+    (void)max_out;
+    return 0;
+}
+
+enum {
     SQ_A8 = 0,
     SQ_H8 = 7,
     SQ_A1 = 56,
@@ -12,6 +20,7 @@ enum
     SQ_E2 = 52,
     SQ_E4 = 36,
     SQ_E5 = 28,
+    SQ_E3 = 44,
 };
 
 static void test_geom_corners(void)
@@ -103,6 +112,21 @@ static void test_strip_hits(void)
     ASSERT_EQ_INT(UI_STRIP_NONE, (int)chess_geom_strip_hit(10, 70, false));
 }
 
+static void test_hints_from_moves(void)
+{
+    chess_move_t moves[] = {
+        {.c1 = SQ_E2, .c2 = SQ_E3, .promo = 0},
+        {.c1 = SQ_E2, .c2 = SQ_E4, .promo = 0},
+        {.c1 = SQ_A1, .c2 = SQ_H1, .promo = 0}, /* different from */
+    };
+    const uint64_t m = chess_hints_from_moves(SQ_E2, moves, 3);
+    ASSERT_TRUE(m & ((uint64_t)1 << SQ_E3));
+    ASSERT_TRUE(m & ((uint64_t)1 << SQ_E4));
+    ASSERT_TRUE(!(m & ((uint64_t)1 << SQ_H1)));
+    ASSERT_EQ_INT(0, (int)chess_hints_from_moves(-1, moves, 3));
+    ASSERT_EQ_INT(0, (int)chess_hints_collect(-1));
+}
+
 int main(void)
 {
     test_geom_corners();
@@ -112,5 +136,6 @@ int main(void)
     test_dirty_highlight_or();
     test_fsm_select_move_cancel();
     test_strip_hits();
+    test_hints_from_moves();
     return test_report();
 }

@@ -2,6 +2,7 @@
 #include "chess_api.h"
 #include "chess_dirty.h"
 #include "chess_geom.h"
+#include "chess_hints.h"
 #include "chess_ui.h"
 #include "hal_display.h"
 #include "ui_font.h"
@@ -11,6 +12,7 @@
 #define C_LIGHT 0xC616
 #define C_DARK 0x5AEB
 #define C_HI 0xFE60       /* selection */
+#define C_HINT 0x87F0     /* legal destination */
 #define C_LAST_FROM 0x6DDB /* muted teal — origin */
 #define C_LAST_TO 0x9E7F   /* brighter teal — destination */
 #define C_STRIP 0x18C3      /* deep slate */
@@ -43,6 +45,7 @@ enum
 static int8_t s_last[64];
 static chess_dirty_mask_t s_dirty;
 static int s_highlight = -1;
+static uint64_t s_hints;
 static int s_last_from = -1;
 static int s_last_to = -1;
 static unsigned s_strip_dirty = STRIP_DIRTY_ALL;
@@ -57,6 +60,10 @@ static uint16_t square_color(int sq, int highlight_sq)
     if (sq == highlight_sq)
     {
         return C_HI;
+    }
+    if (s_hints & ((uint64_t)1 << sq))
+    {
+        return C_HINT;
     }
     if (sq == s_last_to)
     {
@@ -278,6 +285,7 @@ void chess_ui_init(void)
     memset(s_last, 0, sizeof(s_last));
     chess_dirty_all(&s_dirty);
     s_highlight = -1;
+    s_hints = 0;
     s_last_from = -1;
     s_last_to = -1;
     s_strip_dirty = STRIP_DIRTY_ALL;
@@ -295,6 +303,7 @@ void chess_ui_invalidate_all(void)
     s_drawn_side = -1;
     s_last_from = -1;
     s_last_to = -1;
+    s_hints = 0;
 }
 
 void chess_ui_set_busy(bool busy)
@@ -360,6 +369,23 @@ static void set_last_move_squares(int from, int to)
     dirty_sq(s_last_to);
 }
 
+static void set_hint_mask(uint64_t next)
+{
+    if (next == s_hints)
+    {
+        return;
+    }
+    const uint64_t changed = s_hints ^ next;
+    s_hints = next;
+    for (int i = 0; i < 64; i++)
+    {
+        if (changed & ((uint64_t)1 << i))
+        {
+            chess_dirty_add(&s_dirty, i);
+        }
+    }
+}
+
 void chess_ui_sync_from_game(int highlight_sq)
 {
     int8_t curr[64];
@@ -375,6 +401,8 @@ void chess_ui_sync_from_game(int highlight_sq)
         dirty_sq(highlight_sq);
         s_highlight = highlight_sq;
     }
+
+    set_hint_mask(chess_hints_collect(highlight_sq));
 
     int c1 = -1;
     int c2 = -1;

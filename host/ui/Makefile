@@ -2,10 +2,12 @@ CC ?= gcc
 CFLAGS ?= -O0 -g -Wall -Wextra -Werror
 BOARD_DIR := ../../components/board
 UI_DIR := ../../components/ui
-CPPFLAGS := -I.. -I$(BOARD_DIR)/include -I$(UI_DIR)/include
+CHESS_DIR := ../../components/chess
+CPPFLAGS := -I.. -I$(BOARD_DIR)/include -I$(UI_DIR)/include -I$(CHESS_DIR)/include
 
 MATH_SRC := $(BOARD_DIR)/src/touch_calib_math.c
-UI_PURE := $(UI_DIR)/src/chess_geom.c $(UI_DIR)/src/chess_dirty.c $(UI_DIR)/src/chess_fsm.c
+UI_PURE := $(UI_DIR)/src/chess_geom.c $(UI_DIR)/src/chess_dirty.c $(UI_DIR)/src/chess_fsm.c \
+	$(UI_DIR)/src/chess_hints.c
 UI_FONT := $(UI_DIR)/src/ui_font.c
 UI_PIECES := $(UI_DIR)/src/ui_pieces.c
 

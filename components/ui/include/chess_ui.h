@@ -23,7 +23,7 @@ void chess_ui_init(void);
 void chess_ui_invalidate_all(void);
 
 /** Mark squares dirty from pole diff vs last_drawn; OR selection highlight (-1 none).
- * Also syncs last-move from/to highlight from chess_last_move(). */
+ * Also syncs last-move highlight and legal-destination hints for the selection. */
 void chess_ui_sync_from_game(int highlight_sq);
 
 /** Status strip shows "busy" (engine thinking). Redraws side badge only. */
