@@ -31,6 +31,7 @@ static spi_device_handle_t s_touch;
 static bool s_irq_ok;
 static touch_calib_t s_calib;
 static bool s_nvs_ready;
+static bool s_calib_from_nvs;
 
 static uint16_t xpt_read12(uint8_t cmd)
 {
@@ -111,11 +112,17 @@ bool hal_touch_load_nvs(void)
     }
 
     s_calib = c;
+    s_calib_from_nvs = true;
     ESP_LOGI(TAG, "calib from NVS x=[%d,%d] y=[%d,%d] swap=%u z=%u",
              (int)s_calib.x_min, (int)s_calib.x_max, (int)s_calib.y_min,
              (int)s_calib.y_max, (unsigned)s_calib.swap_xy,
              (unsigned)s_calib.z_threshold);
     return true;
+}
+
+bool hal_touch_calib_from_nvs(void)
+{
+    return s_calib_from_nvs;
 }
 
 bool hal_touch_save_nvs(void)
@@ -148,6 +155,7 @@ bool hal_touch_save_nvs(void)
         ESP_LOGW(TAG, "nvs save: %s", esp_err_to_name(err));
         return false;
     }
+    s_calib_from_nvs = true;
     ESP_LOGI(TAG, "calib saved to NVS");
     return true;
 }
@@ -155,6 +163,7 @@ bool hal_touch_save_nvs(void)
 void hal_touch_init(void)
 {
     touch_calib_set_defaults(&s_calib);
+    s_calib_from_nvs = false;
 
     /*
      * GPIO36 is input-only and has NO internal pulls on classic ESP32.

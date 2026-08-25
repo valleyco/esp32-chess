@@ -2,11 +2,60 @@
 
 #include "chess_engine_internal.h"
 
+#ifdef ESP_PLATFORM
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#endif
+
 static bool s_engine_ready = false;
+
+#ifdef ESP_PLATFORM
+static SemaphoreHandle_t s_mu;
+
+static void engine_lock(void)
+{
+    if (!s_mu)
+    {
+        s_mu = xSemaphoreCreateMutex();
+    }
+    if (s_mu)
+    {
+        xSemaphoreTake(s_mu, portMAX_DELAY);
+    }
+}
+
+static void engine_unlock(void)
+{
+    if (s_mu)
+    {
+        xSemaphoreGive(s_mu);
+    }
+}
+#else
+static void engine_lock(void)
+{
+}
+static void engine_unlock(void)
+{
+}
+#endif
+
+struct EngineGuard
+{
+    EngineGuard()
+    {
+        engine_lock();
+    }
+    ~EngineGuard()
+    {
+        engine_unlock();
+    }
+};
 
 static void ensure_engine_ready(void)
 {
-    if (!s_engine_ready) {
+    if (!s_engine_ready)
+    {
         chess_engine_init();
         s_engine_ready = true;
     }
@@ -14,10 +63,12 @@ static void ensure_engine_ready(void)
 
 static int promo_to_step_type(int promo)
 {
-    if (promo == 0) {
+    if (promo == 0)
+    {
         return 7;
     }
-    if (promo < 0) {
+    if (promo < 0)
+    {
         promo = -promo;
     }
     return promo + 2;
@@ -37,15 +88,19 @@ static bool apply_step(const step_t &step)
 static bool find_and_apply_move(int c1, int c2, int want_type, bool require_type)
 {
     generate_steps(0);
-    for (int i = 0; i < pos[0].n_steps; i++) {
+    for (int i = 0; i < pos[0].n_steps; i++)
+    {
         const step_t &s = pos[0].steps[i];
-        if (s.c1 != c1 || s.c2 != c2) {
+        if (s.c1 != c1 || s.c2 != c2)
+        {
             continue;
         }
-        if (require_type && s.type != want_type) {
+        if (require_type && s.type != want_type)
+        {
             continue;
         }
-        if (!require_type && s.type >= 4 && want_type != s.type) {
+        if (!require_type && s.type >= 4 && want_type != s.type)
+        {
             continue;
         }
         pos[0].cur_step = i;
@@ -56,11 +111,13 @@ static bool find_and_apply_move(int c1, int c2, int want_type, bool require_type
 
 extern "C" void chess_new_game(void)
 {
+    EngineGuard g;
     ensure_engine_ready();
     fen(String("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -"));
     game_ply = 0;
     game_pos = pos[0];
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < 64; i++)
+    {
         game_pole[i] = pole[i];
     }
     game_w = 1;
@@ -68,24 +125,26 @@ extern "C" void chess_new_game(void)
 
 extern "C" bool chess_try_move(int c1, int c2, int promo)
 {
-    if (!(game_ply % 2 == 0 && game_w)) {
-        return false;
-    }
-
+    EngineGuard g;
+    ensure_engine_ready();
     generate_steps(0);
 
     int promotion_candidates = 0;
-    for (int i = 0; i < pos[0].n_steps; i++) {
+    for (int i = 0; i < pos[0].n_steps; i++)
+    {
         const step_t &s = pos[0].steps[i];
-        if (s.c1 != c1 || s.c2 != c2) {
+        if (s.c1 != c1 || s.c2 != c2)
+        {
             continue;
         }
-        if (s.type >= 4) {
+        if (s.type >= 4)
+        {
             promotion_candidates++;
         }
     }
 
-    if (promotion_candidates == 0) {
+    if (promotion_candidates == 0)
+    {
         return find_and_apply_move(c1, c2, 0, false);
     }
 
@@ -95,13 +154,14 @@ extern "C" bool chess_try_move(int c1, int c2, int promo)
 
 extern "C" bool chess_is_promotion_move(int c1, int c2)
 {
-    if (!(game_ply % 2 == 0 && game_w)) {
-        return false;
-    }
+    EngineGuard g;
+    ensure_engine_ready();
     generate_steps(0);
-    for (int i = 0; i < pos[0].n_steps; i++) {
+    for (int i = 0; i < pos[0].n_steps; i++)
+    {
         const step_t &s = pos[0].steps[i];
-        if (s.c1 == c1 && s.c2 == c2 && s.type >= 4) {
+        if (s.c1 == c1 && s.c2 == c2 && s.type >= 4)
+        {
             return true;
         }
     }
@@ -110,19 +170,24 @@ extern "C" bool chess_is_promotion_move(int c1, int c2)
 
 extern "C" chess_status_t chess_status(void)
 {
+    EngineGuard g;
+    ensure_engine_ready();
     generate_steps(0);
     int legal = 0;
     int in_check = 0;
-    for (int i = 0; i < pos[0].n_steps; i++) {
+    for (int i = 0; i < pos[0].n_steps; i++)
+    {
         movestep(0, pos[0].steps[i]);
         const int check = pos[0].w ? check_w() : check_b();
-        if (!check) {
+        if (!check)
+        {
             legal++;
         }
         backstep(0, pos[0].steps[i]);
     }
     in_check = pos[0].w ? check_w() : check_b();
-    if (legal > 0) {
+    if (legal > 0)
+    {
         return CHESS_STATUS_OK;
     }
     return in_check ? CHESS_STATUS_CHECKMATE : CHESS_STATUS_STALEMATE;
@@ -130,18 +195,24 @@ extern "C" chess_status_t chess_status(void)
 
 extern "C" bool chess_think(unsigned timeout_ms)
 {
+    EngineGuard g;
+    ensure_engine_ready();
     timelimith = timeout_ms;
     halt = 0;
     pos[0].best.c1 = -1;
     solve_step();
-    if (pos[0].best.c1 == -1) {
+    if (pos[0].best.c1 == -1)
+    {
         return false;
     }
 
     generate_steps(0);
-    for (int i = 0; i < pos[0].n_steps; i++) {
+    for (int i = 0; i < pos[0].n_steps; i++)
+    {
         const step_t &s = pos[0].steps[i];
-        if (s.c1 == pos[0].best.c1 && s.c2 == pos[0].best.c2 && s.type == pos[0].best.type) {
+        if (s.c1 == pos[0].best.c1 && s.c2 == pos[0].best.c2 &&
+            s.type == pos[0].best.type)
+        {
             pos[0].cur_step = i;
             movestep(0, pos[0].steps[i]);
             movepos(0, pos[0].steps[i]);
@@ -156,16 +227,21 @@ extern "C" bool chess_think(unsigned timeout_ms)
 
 extern "C" bool chess_undo(void)
 {
-    if (game_ply <= 1) {
+    EngineGuard g;
+    ensure_engine_ready();
+    if (game_ply <= 1)
+    {
         return false;
     }
 
     pos[0] = game_pos;
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < 64; i++)
+    {
         pole[i] = game_pole[i];
     }
     game_ply -= 2;
-    for (int i = 0; i < game_ply; i++) {
+    for (int i = 0; i < game_ply; i++)
+    {
         movestep(0, game_steps[i]);
         movepos(0, game_steps[i]);
         generate_steps(1);
@@ -177,7 +253,10 @@ extern "C" bool chess_undo(void)
 
 extern "C" int chess_get_square(int i)
 {
-    if (i < 0 || i > 63) {
+    EngineGuard g;
+    ensure_engine_ready();
+    if (i < 0 || i > 63)
+    {
         return 0;
     }
     return pole[i];
@@ -185,24 +264,33 @@ extern "C" int chess_get_square(int i)
 
 extern "C" int chess_side_to_move(void)
 {
+    EngineGuard g;
+    ensure_engine_ready();
     return pos[0].w ? 1 : 0;
 }
 
 extern "C" int chess_ply(void)
 {
+    EngineGuard g;
+    ensure_engine_ready();
     return game_ply;
 }
 
 extern "C" bool chess_last_move(int *c1, int *c2)
 {
-    if (game_ply <= 0) {
+    EngineGuard g;
+    ensure_engine_ready();
+    if (game_ply <= 0)
+    {
         return false;
     }
     const step_t &s = game_steps[game_ply - 1];
-    if (c1) {
+    if (c1)
+    {
         *c1 = s.c1;
     }
-    if (c2) {
+    if (c2)
+    {
         *c2 = s.c2;
     }
     return true;

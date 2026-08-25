@@ -191,6 +191,9 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 10 | Strip/promo bitmap font labels (5×7) | `done` (2026-08-25) | host glyph smoke |
 | 11 | Piece sprites (24×24 1bpp + outline) | `done` (2026-08-25) | host fill counts |
 | 12 | Last-move from/to highlight | `done` (2026-08-25) | host last_move API |
+| 13 | Auto-calib if NVS empty | `done` (2026-08-25) | boot path |
+| 14 | `chess_try_move` side-to-move | `done` (2026-08-25) | host Black e7e5 |
+| 15 | Engine mutex + ownership docs | `done` (2026-08-25) | — |
 
 **Gate:** on-device bring-up **passed** (2026-08-25) — lcdtest OK, touchcalib OK, main play OK.
 
@@ -202,9 +205,9 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P1** | Readable strip / promo labels (tiny bitmap font or icons) | `done` (2026-08-25) | Color-only NEW/UNDO/CAL/TIME and Q/R/B/N is unclear on first use |
 | **P1** | Real piece sprites (replace rect glyphs) | `done` (2026-08-25) | Biggest visual UX win; keep dirty-square redraw |
 | **P1** | Last-move highlight (from/to) | `done` (2026-08-25) | Makes engine replies obvious without reading UART |
-| **P2** | Auto-enter calib once if NVS empty (hold-pen optional) | `todo` | Plan already sketched; reduces “forgot to CAL” |
-| **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `todo` | Cleaner if we ever dual-human or flip colors; app enforces White today |
-| **P2** | Document / harden single-owner access to engine | `todo` | Needed if WiFi/UCI ever appears |
+| **P2** | Auto-enter calib once if NVS empty (hold-pen optional) | `done` (2026-08-25) | Plan already sketched; reduces “forgot to CAL” |
+| **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `done` (2026-08-25) | Cleaner if we ever dual-human or flip colors; app enforces White today |
+| **P2** | Document / harden single-owner access to engine | `done` (2026-08-25) | Needed if WiFi/UCI ever appears |
 | **P3** | Extract `components/chess` to a standalone lib repo | `todo` | After API boring (D2) |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `todo` | Prefer playtest first |
@@ -214,6 +217,9 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 10 | Strip/promo bitmap font labels | `done` (2026-08-25) |
 | 11 | Piece sprites | `done` (2026-08-25) |
 | 12 | Last-move highlight | `done` (2026-08-25) |
+| 13 | Auto-calib on empty NVS | `done` (2026-08-25) |
+| 14 | try_move for side-to-move | `done` (2026-08-25) |
+| 15 | Engine API mutex + docs | `done` (2026-08-25) |
 
 **Do not reverse without cause:** D1–D5 (port this engine, in-tree first, GPL, TDD, dirty squares).
 

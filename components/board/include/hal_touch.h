@@ -32,6 +32,9 @@ void hal_touch_get_calib(touch_calib_t *c);
 /** Load from NVS namespace "touch". False if missing/corrupt (defaults kept). */
 bool hal_touch_load_nvs(void);
 
+/** True if the active calib was loaded from NVS (not factory defaults). */
+bool hal_touch_calib_from_nvs(void);
+
 /** Persist current calib to NVS. False on error. */
 bool hal_touch_save_nvs(void);
 

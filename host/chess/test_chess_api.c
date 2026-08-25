@@ -93,6 +93,18 @@ static void test_last_move(void)
     ASSERT_TRUE(!chess_last_move(&c1, &c2));
 }
 
+static void test_try_move_side_to_move(void)
+{
+    /* API accepts Black's reply; app still enforces White-only UI. */
+    chess_new_game();
+    ASSERT_TRUE(chess_try_move(SQ_E2, SQ_E4, 0));
+    ASSERT_EQ_INT(0, chess_side_to_move());
+    ASSERT_TRUE(chess_try_move(SQ_E7, SQ_E5, 0));
+    ASSERT_EQ_INT(1, chess_side_to_move());
+    ASSERT_EQ_INT(-1, chess_get_square(SQ_E5));
+    ASSERT_EQ_INT(0, chess_get_square(SQ_E7));
+}
+
 int main(void)
 {
     test_start_position();
@@ -101,5 +113,6 @@ int main(void)
     test_think_applies_legal_black_move();
     test_undo_restores();
     test_last_move();
+    test_try_move_side_to_move();
     return test_report();
 }

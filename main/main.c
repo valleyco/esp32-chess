@@ -328,6 +328,12 @@ void app_main(void)
     hal_display_init();
     hal_touch_init();
 
+    if (!hal_touch_calib_from_nvs())
+    {
+        ESP_LOGI(TAG, "no NVS calib — running wizard");
+        (void)touch_calib_run_wizard();
+    }
+
     chess_ui_init();
     chess_ui_set_think_ms(s_think_ms);
     chess_ui_invalidate_all();

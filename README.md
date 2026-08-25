@@ -34,13 +34,15 @@ Override port: `make flash PORT=/dev/ttyACM0`.
 | `make flash-esp32-touchtest` | Finger-paint + UART raw ADC |
 | `make flash-esp32-touchcalib` | Standalone 4-corner calib wizard → NVS |
 
-After calib (standalone or in-game **CAL**), touch mapping is stored in NVS
-namespace `touch`. Empty/corrupt NVS falls back to factory raw ranges (~200…3800).
+After calib (standalone, in-game **CAL**, or first boot), touch mapping is stored
+in NVS namespace `touch`. If NVS has no valid calib, the main app runs the wizard
+automatically once before the board appears. Empty/corrupt load still falls back
+to factory raw ranges (~200…3800) until the wizard succeeds.
 
 ## How to play
 
 1. Flash the main app (`make flash`).
-2. Prefer running **CAL** once (strip or `flash-esp32-touchcalib`) so 30 px squares hit cleanly.
+2. On first boot without saved calib, complete the 4-corner wizard; later use **CAL** if hits drift.
 3. Tap a White piece, then a destination square.
 4. Strip turns yellow while the engine thinks; then Black moves.
 
@@ -80,6 +82,10 @@ main/               game loop + lcd/touch/calib probe mains
 ```
 
 Board paint is **square-level dirty** (`last_drawn[64]`), not a full framebuffer.
+
+`chess_api` serializes engine access with an internal mutex. The UI task should
+only call into it when the think worker is idle (except the worker’s own
+`chess_think`); do not touch engine globals outside `chess_api`.
 
 ## License and attribution
 
