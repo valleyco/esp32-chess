@@ -63,8 +63,9 @@ Squares: engine index **a8 = 0 … h1 = 63**; board is left 240×240 (30 px cell
 ## Host tests (TDD)
 
 ```bash
-make test           # all
-make test-chess     # chess_api
+make test           # all (chess API + fixed-depth bench goldens + UI)
+make test-chess     # chess_api + bench goldens
+make bench          # print depth/nodes/nps table (no asserts)
 make test-ui        # geom, dirty mask, FSM, strip hits, touch calib math
 ```
 
@@ -97,6 +98,7 @@ API notes (in-tree hardening toward a future C lib):
   optional `chess_search_result_t` (move, depth, nodes, score)
 - `chess_legal_moves` — legal list for the side to move
 - `CHESS_PIECE_*` / `CHESS_PROMO_*` — piece/promo constants
+- `make bench` / `host/chess/bench_chess` — fixed-depth node goldens (CPU-independent)
 
 ## License and attribution
 

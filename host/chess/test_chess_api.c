@@ -160,7 +160,7 @@ static void test_think_depth_result(void)
     ASSERT_EQ_INT(2, chess_ply());
     ASSERT_TRUE(r.c1 >= 0 && r.c1 < 64);
     ASSERT_TRUE(r.c2 >= 0 && r.c2 < 64);
-    ASSERT_TRUE(r.depth >= 2);
+    ASSERT_EQ_INT(3, r.depth);
     ASSERT_TRUE(r.nodes > 0);
 }
 

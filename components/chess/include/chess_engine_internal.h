@@ -39,6 +39,7 @@ extern boolean halt;
 extern int search_max_level;
 extern unsigned long count;
 extern int level;
+extern int lastbestdepth;
 
 boolean fen(String ss);
 String fenout(int l);

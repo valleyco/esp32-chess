@@ -155,7 +155,7 @@ static bool run_search_and_apply(chess_search_result_t *out)
     local.c1 = pos[0].best.c1;
     local.c2 = pos[0].best.c2;
     local.promo = step_type_to_promo(pos[0].best.type);
-    local.depth = level;
+    local.depth = lastbestdepth > 0 ? lastbestdepth : level;
     local.nodes = count;
     local.score = pos[0].best.weight;
 

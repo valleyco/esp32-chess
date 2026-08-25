@@ -6,7 +6,7 @@ PORT ?= /dev/ttyUSB0
 	build-esp32-touchcalib \
 	flash flash-esp32 flash-esp32-lcdtest flash-esp32-touchtest \
 	flash-esp32-touchcalib \
-	monitor monitor-esp32 clean test test-chess test-ui
+	monitor monitor-esp32 clean test test-chess test-ui bench
 
 build: build-esp32
 
@@ -53,6 +53,9 @@ test-chess:
 
 test-ui:
 	$(MAKE) -C host/ui test
+
+bench:
+	$(MAKE) -C host/chess bench
 
 clean:
 	rm -rf build-esp32 build-esp32-lcdtest build-esp32-touchtest \
