@@ -92,6 +92,17 @@ static void test_fsm_select_move_cancel(void)
     ASSERT_EQ_INT(CHESS_FSM_IDLE, (int)f.state);
 }
 
+static void test_strip_hits(void)
+{
+    ASSERT_EQ_INT(UI_STRIP_NEW, (int)chess_geom_strip_hit(250, 70, false));
+    ASSERT_EQ_INT(UI_STRIP_UNDO, (int)chess_geom_strip_hit(250, 110, false));
+    ASSERT_EQ_INT(UI_STRIP_CALIB, (int)chess_geom_strip_hit(250, 160, false));
+    ASSERT_EQ_INT(UI_STRIP_TIME, (int)chess_geom_strip_hit(250, 200, false));
+    ASSERT_EQ_INT(UI_STRIP_PROMO_Q, (int)chess_geom_strip_hit(250, 70, true));
+    ASSERT_EQ_INT(UI_STRIP_PROMO_N, (int)chess_geom_strip_hit(250, 200, true));
+    ASSERT_EQ_INT(UI_STRIP_NONE, (int)chess_geom_strip_hit(10, 70, false));
+}
+
 int main(void)
 {
     test_geom_corners();
@@ -100,5 +111,6 @@ int main(void)
     test_dirty_e2e4();
     test_dirty_highlight_or();
     test_fsm_select_move_cancel();
+    test_strip_hits();
     return test_report();
 }

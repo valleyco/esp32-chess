@@ -6,20 +6,29 @@
 #include "hal_display.h"
 
 /* RGB565 */
-#define C_LIGHT 0xC616 /* warm light square */
-#define C_DARK 0x5Aeb
-#define C_HI 0xFE60   /* selection */
+#define C_LIGHT 0xC616
+#define C_DARK 0x5AEB
+#define C_HI 0xFE60
 #define C_STRIP 0x2104
 #define C_BUSY 0xFE60
+#define C_BTN 0x39E7
 #define C_WHITE_P 0xFFFF
 #define C_BLACK_P 0x0000
 #define C_OUTLINE 0x8410
+#define C_RED 0xF800
+#define C_BLUE 0x001F
+#define C_GREEN 0x07E0
+#define C_CYAN 0x07FF
+#define C_MAGENTA 0xF81F
 
 static int8_t s_last[64];
 static chess_dirty_mask_t s_dirty;
 static int s_highlight = -1;
 static bool s_strip_dirty = true;
 static bool s_busy = false;
+static chess_ui_mode_t s_mode = UI_MODE_PLAY;
+static chess_status_t s_status = CHESS_STATUS_OK;
+static unsigned s_think_ms = 3000;
 
 static uint16_t square_color(int sq, int highlight_sq)
 {
@@ -46,13 +55,11 @@ static void draw_piece_glyph(int x, int y, int8_t p)
     }
     const int abs_p = p > 0 ? p : -p;
     const uint16_t fg = piece_color(p);
-    /* Simple nested rects — enough to tell piece presence/color until sprites. */
-    const int inset = 4 + (6 - abs_p); /* king larger, pawn smaller */
+    const int inset = 4 + (6 - abs_p);
     hal_display_fill_rect(x + inset, y + inset, UI_SQUARE_PX - 2 * inset,
                           UI_SQUARE_PX - 2 * inset, fg);
     if (abs_p >= 5)
     {
-        /* queen/king: small center mark */
         hal_display_fill_rect(x + UI_SQUARE_PX / 2 - 2, y + UI_SQUARE_PX / 2 - 2,
                               4, 4, C_OUTLINE);
     }
@@ -68,17 +75,68 @@ static void draw_one_square(int sq)
     s_last[sq] = p;
 }
 
+static void draw_btn(ui_strip_hit_t hit, uint16_t fill)
+{
+    int x, y, w, h;
+    chess_geom_strip_button_rect(hit, &x, &y, &w, &h);
+    if (w <= 0 || h <= 0)
+    {
+        return;
+    }
+    hal_display_fill_rect(x, y, w, h, fill);
+    /* Tiny mark: left bar thickness encodes button id for no-font UI. */
+    const int mark = 4 + ((int)hit % 4);
+    hal_display_fill_rect(x + 4, y + h / 2 - mark / 2, mark, mark, C_WHITE_P);
+}
+
 static void draw_strip(void)
 {
     hal_display_fill_rect(UI_STRIP_X, 0, UI_STRIP_W, UI_PANEL_H, C_STRIP);
-    /* Side indicator: top block white/black (or busy yellow). */
-    const uint16_t side =
-        s_busy ? C_BUSY : (chess_side_to_move() ? C_WHITE_P : C_BLACK_P);
-    hal_display_fill_rect(UI_STRIP_X + 16, 16, UI_STRIP_W - 32, 40, side);
-    if (s_busy)
+
+    uint16_t side = C_BTN;
+    if (s_mode == UI_MODE_OVER)
     {
-        hal_display_fill_rect(UI_STRIP_X + 16, 70, UI_STRIP_W - 32, 12, C_BUSY);
+        side = (s_status == CHESS_STATUS_CHECKMATE) ? C_RED : C_BLUE;
     }
+    else if (s_busy)
+    {
+        side = C_BUSY;
+    }
+    else
+    {
+        side = chess_side_to_move() ? C_WHITE_P : C_BLACK_P;
+    }
+    draw_btn(UI_STRIP_SIDE, side);
+
+    if (s_mode == UI_MODE_PROMO)
+    {
+        draw_btn(UI_STRIP_PROMO_Q, C_HI);      /* queen */
+        draw_btn(UI_STRIP_PROMO_R, C_CYAN);    /* rook */
+        draw_btn(UI_STRIP_PROMO_B, C_GREEN);   /* bishop */
+        draw_btn(UI_STRIP_PROMO_N, C_MAGENTA); /* knight */
+    }
+    else
+    {
+        draw_btn(UI_STRIP_NEW, C_BTN);
+        draw_btn(UI_STRIP_UNDO, C_BTN);
+        draw_btn(UI_STRIP_CALIB, C_BTN);
+        /* TIME: bar width ~ think seconds (1..5 → fraction of button). */
+        draw_btn(UI_STRIP_TIME, C_BTN);
+        int x, y, w, h;
+        chess_geom_strip_button_rect(UI_STRIP_TIME, &x, &y, &w, &h);
+        int secs = (int)(s_think_ms / 1000);
+        if (secs < 1)
+        {
+            secs = 1;
+        }
+        if (secs > 5)
+        {
+            secs = 5;
+        }
+        const int bar = (w - 8) * secs / 5;
+        hal_display_fill_rect(x + 4, y + h - 10, bar, 6, C_HI);
+    }
+
     s_strip_dirty = false;
 }
 
@@ -89,6 +147,9 @@ void chess_ui_init(void)
     s_highlight = -1;
     s_strip_dirty = true;
     s_busy = false;
+    s_mode = UI_MODE_PLAY;
+    s_status = CHESS_STATUS_OK;
+    s_think_ms = 3000;
 }
 
 void chess_ui_invalidate_all(void)
@@ -104,6 +165,32 @@ void chess_ui_set_busy(bool busy)
         return;
     }
     s_busy = busy;
+    s_strip_dirty = true;
+}
+
+void chess_ui_set_mode(chess_ui_mode_t mode)
+{
+    if (s_mode == mode)
+    {
+        return;
+    }
+    s_mode = mode;
+    s_strip_dirty = true;
+}
+
+void chess_ui_set_status(chess_status_t st)
+{
+    s_status = st;
+    s_strip_dirty = true;
+}
+
+void chess_ui_set_think_ms(unsigned ms)
+{
+    if (s_think_ms == ms)
+    {
+        return;
+    }
+    s_think_ms = ms;
     s_strip_dirty = true;
 }
 
@@ -129,7 +216,7 @@ void chess_ui_sync_from_game(int highlight_sq)
         s_highlight = highlight_sq;
     }
 
-    s_strip_dirty = true; /* side-to-move may have changed */
+    s_strip_dirty = true;
 }
 
 void chess_ui_paint(void)

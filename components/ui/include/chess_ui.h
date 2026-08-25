@@ -1,12 +1,20 @@
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>
+#include "chess_api.h"
 #include "chess_dirty.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
+
+typedef enum
+{
+    UI_MODE_PLAY = 0,
+    UI_MODE_PROMO,
+    UI_MODE_OVER, /* mate / stalemate */
+} chess_ui_mode_t;
 
 /** Init UI state (last_drawn empty, full dirty). Does not paint. */
 void chess_ui_init(void);
@@ -19,6 +27,15 @@ void chess_ui_sync_from_game(int highlight_sq);
 
 /** Status strip shows "busy" (engine thinking). Triggers strip redraw. */
 void chess_ui_set_busy(bool busy);
+
+/** Play / promotion picker / game-over strip layout. */
+void chess_ui_set_mode(chess_ui_mode_t mode);
+
+/** Game-over / info banner (mate, stalemate). */
+void chess_ui_set_status(chess_status_t st);
+
+/** Think-time shown on TIME button (milliseconds). */
+void chess_ui_set_think_ms(unsigned ms);
 
 /** Paint all dirty squares + strip if needed. Updates last_drawn. */
 void chess_ui_paint(void);

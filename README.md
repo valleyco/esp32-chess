@@ -6,10 +6,22 @@ ported from [hpsaturn/esp32-chess-engine](https://github.com/hpsaturn/esp32-ches
 
 ## Status
 
-Step 7 done: touch select/move + engine think on worker (strip yellow while busy).
+Step 8 done: strip NEW / UNDO / CAL / TIME, promotion picker, mate/stalemate.
 Host: `make test`. Flash when connected: `make flash && make monitor`.
 
 See `PLAN.md`.
+
+### Strip controls (right 80 px)
+
+| Band | Action |
+|---|---|
+| Top | Side to move (yellow = thinking; red/blue = mate/stale) |
+| NEW | New game |
+| UNDO | Undo last human+engine pair |
+| CAL | In-game 4-corner calibration |
+| TIME | Cycle think time 1s → 3s → 5s (bar width) |
+
+Promotion: strip becomes Q / R / B / N (color-coded).
 
 ## License
 

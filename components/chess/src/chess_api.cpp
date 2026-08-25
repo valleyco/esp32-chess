@@ -93,6 +93,41 @@ extern "C" bool chess_try_move(int c1, int c2, int promo)
     return find_and_apply_move(c1, c2, want_type, true);
 }
 
+extern "C" bool chess_is_promotion_move(int c1, int c2)
+{
+    if (!(game_ply % 2 == 0 && game_w)) {
+        return false;
+    }
+    generate_steps(0);
+    for (int i = 0; i < pos[0].n_steps; i++) {
+        const step_t &s = pos[0].steps[i];
+        if (s.c1 == c1 && s.c2 == c2 && s.type >= 4) {
+            return true;
+        }
+    }
+    return false;
+}
+
+extern "C" chess_status_t chess_status(void)
+{
+    generate_steps(0);
+    int legal = 0;
+    int in_check = 0;
+    for (int i = 0; i < pos[0].n_steps; i++) {
+        movestep(0, pos[0].steps[i]);
+        const int check = pos[0].w ? check_w() : check_b();
+        if (!check) {
+            legal++;
+        }
+        backstep(0, pos[0].steps[i]);
+    }
+    in_check = pos[0].w ? check_w() : check_b();
+    if (legal > 0) {
+        return CHESS_STATUS_OK;
+    }
+    return in_check ? CHESS_STATUS_CHECKMATE : CHESS_STATUS_STALEMATE;
+}
+
 extern "C" bool chess_think(unsigned timeout_ms)
 {
     timelimith = timeout_ms;

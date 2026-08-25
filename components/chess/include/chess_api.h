@@ -6,10 +6,19 @@
 extern "C" {
 #endif
 
+typedef enum {
+    CHESS_STATUS_OK = 0,
+    CHESS_STATUS_CHECKMATE,
+    CHESS_STATUS_STALEMATE,
+} chess_status_t;
+
 void chess_new_game(void);
 
-/** Apply a human move if legal. promo: 0 = queen (default), or piece type (±2..±5). */
+/** Apply a human move if legal. promo: 0 = queen (default), or piece type 2..5 (NBRQ). */
 bool chess_try_move(int c1, int c2, int promo);
+
+/** True if c1→c2 is a legal promotion (needs piece choice). */
+bool chess_is_promotion_move(int c1, int c2);
 
 /** Search for timeout_ms, apply best move. Returns false if no move found. */
 bool chess_think(unsigned timeout_ms);
@@ -25,6 +34,9 @@ int chess_side_to_move(void);
 
 /** Half-moves played in the current game line. */
 int chess_ply(void);
+
+/** Mate / stalemate for the side to move. */
+chess_status_t chess_status(void);
 
 #ifdef __cplusplus
 }

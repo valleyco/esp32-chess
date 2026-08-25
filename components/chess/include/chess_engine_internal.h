@@ -41,4 +41,7 @@ boolean fen(String ss);
 void generate_steps(int l);
 void movestep(int l, step_t &s);
 void movepos(int l, step_t &s);
+void backstep(int l, step_t &s);
 boolean solve_step();
+boolean check_w();
+boolean check_b();
