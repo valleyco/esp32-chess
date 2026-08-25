@@ -22,7 +22,8 @@ void chess_ui_init(void);
 /** Force full board + strip redraw on next paint. */
 void chess_ui_invalidate_all(void);
 
-/** Mark squares dirty from pole diff vs last_drawn; OR highlight square (-1 none). */
+/** Mark squares dirty from pole diff vs last_drawn; OR selection highlight (-1 none).
+ * Also syncs last-move from/to highlight from chess_last_move(). */
 void chess_ui_sync_from_game(int highlight_sq);
 
 /** Status strip shows "busy" (engine thinking). Redraws side badge only. */

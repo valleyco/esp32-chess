@@ -71,6 +71,28 @@ static void test_undo_restores(void)
     ASSERT_EQ_INT(0, chess_ply());
 }
 
+static void test_last_move(void)
+{
+    int c1 = -1;
+    int c2 = -1;
+    chess_new_game();
+    ASSERT_TRUE(!chess_last_move(&c1, &c2));
+
+    ASSERT_TRUE(chess_try_move(SQ_E2, SQ_E4, 0));
+    ASSERT_TRUE(chess_last_move(&c1, &c2));
+    ASSERT_EQ_INT(SQ_E2, c1);
+    ASSERT_EQ_INT(SQ_E4, c2);
+
+    ASSERT_TRUE(chess_think(500));
+    ASSERT_TRUE(chess_last_move(&c1, &c2));
+    ASSERT_TRUE(c1 >= 0 && c1 < 64);
+    ASSERT_TRUE(c2 >= 0 && c2 < 64);
+    ASSERT_TRUE(c1 != c2);
+
+    ASSERT_TRUE(chess_undo());
+    ASSERT_TRUE(!chess_last_move(&c1, &c2));
+}
+
 int main(void)
 {
     test_start_position();
@@ -78,5 +100,6 @@ int main(void)
     test_e2e5_illegal();
     test_think_applies_legal_black_move();
     test_undo_restores();
+    test_last_move();
     return test_report();
 }

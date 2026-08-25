@@ -192,3 +192,18 @@ extern "C" int chess_ply(void)
 {
     return game_ply;
 }
+
+extern "C" bool chess_last_move(int *c1, int *c2)
+{
+    if (game_ply <= 0) {
+        return false;
+    }
+    const step_t &s = game_steps[game_ply - 1];
+    if (c1) {
+        *c1 = s.c1;
+    }
+    if (c2) {
+        *c2 = s.c2;
+    }
+    return true;
+}

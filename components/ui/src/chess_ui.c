@@ -10,7 +10,9 @@
 /* RGB565 — strip palette */
 #define C_LIGHT 0xC616
 #define C_DARK 0x5AEB
-#define C_HI 0xFE60
+#define C_HI 0xFE60       /* selection */
+#define C_LAST_FROM 0x6DDB /* muted teal — origin */
+#define C_LAST_TO 0x9E7F   /* brighter teal — destination */
 #define C_STRIP 0x18C3      /* deep slate */
 #define C_STRIP_GAP 0x10A2  /* darker gutter between buttons */
 #define C_BUSY 0xFDC0       /* warm amber */
@@ -41,6 +43,8 @@ enum
 static int8_t s_last[64];
 static chess_dirty_mask_t s_dirty;
 static int s_highlight = -1;
+static int s_last_from = -1;
+static int s_last_to = -1;
 static unsigned s_strip_dirty = STRIP_DIRTY_ALL;
 static bool s_busy = false;
 static chess_ui_mode_t s_mode = UI_MODE_PLAY;
@@ -50,13 +54,21 @@ static int s_drawn_side = -1; /* last painted side-to-move: 0/1, or -1 unknown *
 
 static uint16_t square_color(int sq, int highlight_sq)
 {
-    const int col = sq % 8;
-    const int row = sq / 8;
-    const bool light = ((row + col) & 1) == 0;
     if (sq == highlight_sq)
     {
         return C_HI;
     }
+    if (sq == s_last_to)
+    {
+        return C_LAST_TO;
+    }
+    if (sq == s_last_from)
+    {
+        return C_LAST_FROM;
+    }
+    const int col = sq % 8;
+    const int row = sq / 8;
+    const bool light = ((row + col) & 1) == 0;
     return light ? C_LIGHT : C_DARK;
 }
 
@@ -266,6 +278,8 @@ void chess_ui_init(void)
     memset(s_last, 0, sizeof(s_last));
     chess_dirty_all(&s_dirty);
     s_highlight = -1;
+    s_last_from = -1;
+    s_last_to = -1;
     s_strip_dirty = STRIP_DIRTY_ALL;
     s_busy = false;
     s_mode = UI_MODE_PLAY;
@@ -279,6 +293,8 @@ void chess_ui_invalidate_all(void)
     chess_dirty_all(&s_dirty);
     s_strip_dirty = STRIP_DIRTY_ALL;
     s_drawn_side = -1;
+    s_last_from = -1;
+    s_last_to = -1;
 }
 
 void chess_ui_set_busy(bool busy)
@@ -322,6 +338,28 @@ void chess_ui_set_think_ms(unsigned ms)
     s_strip_dirty |= STRIP_DIRTY_TIME;
 }
 
+static void dirty_sq(int sq)
+{
+    if (sq >= 0 && sq < 64)
+    {
+        chess_dirty_add(&s_dirty, sq);
+    }
+}
+
+static void set_last_move_squares(int from, int to)
+{
+    if (from == s_last_from && to == s_last_to)
+    {
+        return;
+    }
+    dirty_sq(s_last_from);
+    dirty_sq(s_last_to);
+    s_last_from = from;
+    s_last_to = to;
+    dirty_sq(s_last_from);
+    dirty_sq(s_last_to);
+}
+
 void chess_ui_sync_from_game(int highlight_sq)
 {
     int8_t curr[64];
@@ -333,15 +371,20 @@ void chess_ui_sync_from_game(int highlight_sq)
 
     if (highlight_sq != s_highlight)
     {
-        if (s_highlight >= 0)
-        {
-            chess_dirty_add(&s_dirty, s_highlight);
-        }
-        if (highlight_sq >= 0)
-        {
-            chess_dirty_add(&s_dirty, highlight_sq);
-        }
+        dirty_sq(s_highlight);
+        dirty_sq(highlight_sq);
         s_highlight = highlight_sq;
+    }
+
+    int c1 = -1;
+    int c2 = -1;
+    if (chess_last_move(&c1, &c2))
+    {
+        set_last_move_squares(c1, c2);
+    }
+    else
+    {
+        set_last_move_squares(-1, -1);
     }
 
     const int side = chess_side_to_move();

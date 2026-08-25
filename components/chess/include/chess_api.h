@@ -35,6 +35,12 @@ int chess_side_to_move(void);
 /** Half-moves played in the current game line. */
 int chess_ply(void);
 
+/**
+ * Last applied half-move (game_steps[ply-1]).
+ * Returns false if no moves yet; otherwise writes c1/c2 (a8=0 … h1=63).
+ */
+bool chess_last_move(int *c1, int *c2);
+
 /** Mate / stalemate for the side to move. */
 chess_status_t chess_status(void);
 
