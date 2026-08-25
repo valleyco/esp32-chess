@@ -4,6 +4,7 @@
 
 Work it interactively. **Do not start a step until we agree it.**
 After each discussion, update decisions and step status here.
+**Commit after each completed step** (one commit per step going forward).
 
 Statuses: `todo` · `discuss` · `agreed` · `in progress` · `done`
 
