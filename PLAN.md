@@ -187,7 +187,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 6 | Host tests: panel→square, touch FSM, **dirty mask** (e2e4 → sq 52+36); then `ui` draw_square / draw_dirty from `pole[]` | `done` (2026-08-25) — host 33 asserts; firmware paints start + dirty e2e4 (not flashed) | **red first** |
 | 7 | Wire touch selection + human moves; engine reply on worker task | `done` (2026-08-25) — touch FSM + think task on core 1; built, not flashed | host FSM green first |
 | 8 | In-game Calibrate entry + polish: undo, new game, think-time, mate, promotion | `done` (2026-08-25) — strip NEW/UNDO/CAL/TIME, promo picker, mate/stale; built not flashed | extend host where pure |
-| 9 | Document flash/monitor, calib, `make test`, and GPL attribution in README | `todo` | — |
+| 9 | Document flash/monitor, calib, `make test`, and GPL attribution in README | `done` (2026-08-25) | — |
 | — | Later: extract `components/chess` to a standalone lib repo | `out of scope` (v1) | — |
 
 ## Risks / gotchas to expect early
