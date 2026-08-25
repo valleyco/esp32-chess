@@ -2110,6 +2110,7 @@ boolean print_best(int dep) {
   }
   lastbestdepth = dep;
   lastbeststep = pos[0].best;
+#ifdef CHESS_ENGINE_SERIAL
   if (pos[0].w == 0)
     Serial.print("1...");
   else
@@ -2123,6 +2124,7 @@ boolean print_best(int dep) {
   if (pos[0].best.weight > 9000) wei = "+M" + String((10001 - pos[0].best.weight) / 2);
 
   Serial.println("(" + wei + ") Depth: " + String(dep + depf) + get_time(tim) + " " + String(count / 1000) + "kN");
+#endif
   return ret;
 }
 

@@ -151,10 +151,13 @@ inline String operator+(char lhs, const String &rhs) {
     return out;
 }
 
+/* Engine Serial is muted by default (UART cost during think).
+ * Define CHESS_ENGINE_SERIAL to dump search progress to stderr again. */
 class SerialClass {
 public:
     void begin(unsigned long) {}
 
+#ifdef CHESS_ENGINE_SERIAL
     void print(char c) { std::fputc(c, stderr); }
     void print(const char *s) { if (s) std::fputs(s, stderr); }
     void print(int v) { std::fprintf(stderr, "%d", v); }
@@ -175,6 +178,19 @@ public:
         print(v);
         println();
     }
+#else
+    void print(char) {}
+    void print(const char *) {}
+    void print(int) {}
+    void print(long) {}
+    void print(unsigned long) {}
+    void print(const String &) {}
+
+    void println() {}
+    void println(const char *) {}
+    void println(const String &) {}
+    void println(int) {}
+#endif
 
     int available() { return 0; }
 

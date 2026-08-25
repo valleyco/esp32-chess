@@ -71,6 +71,9 @@ make test-ui        # geom, dirty mask, FSM, strip hits, touch calib math
 No LCD/IDF in `host/` — pure `gcc` against `components/chess` and `components/ui`
 (plus board calib math).
 
+Engine search progress is **muted** by default (no UART spam during think). To
+re-enable upstream-style depth lines, build with `-DCHESS_ENGINE_SERIAL`.
+
 ## Project layout
 
 ```text
