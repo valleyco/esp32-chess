@@ -97,6 +97,7 @@ API notes (in-tree hardening toward a future C lib):
 - `chess_think_time` / `chess_think_depth` — play vs fixed-depth (bench-friendly);
   optional `chess_search_result_t` (move, depth, nodes, score)
 - `chess_legal_moves` — legal list for the side to move
+- `chess_undo_ply` / `chess_undo` — one half-move vs human+engine pair
 - `CHESS_PIECE_*` / `CHESS_PROMO_*` — piece/promo constants
 - `make bench` / `host/chess/bench_chess` — fixed-depth node goldens (CPU-independent)
 

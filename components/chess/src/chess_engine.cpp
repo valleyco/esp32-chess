@@ -2499,6 +2499,9 @@ int solvefen(String s) {
   Serial.println();
   return ret;
 }
+
+#ifndef CHESS_ENGINE_LIBRARY
+
 //****************************
 void elo(int numelo = 0) {  // ELOmeter tests
   String elos[76] = {
@@ -3736,8 +3739,6 @@ void game() {
   }
   Serial.println("Game Over");
 }
-
-#ifndef CHESS_ENGINE_LIBRARY
 
 //****************************
 void setup() {

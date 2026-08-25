@@ -75,6 +75,23 @@ static void test_undo_restores(void)
     ASSERT_EQ_INT(0, chess_ply());
 }
 
+static void test_undo_ply(void)
+{
+    chess_new_game();
+    ASSERT_TRUE(!chess_undo_ply());
+    ASSERT_TRUE(chess_try_move(SQ_E2, SQ_E4, CHESS_PROMO_QUEEN_DEFAULT));
+    ASSERT_TRUE(chess_try_move(SQ_E7, SQ_E5, CHESS_PROMO_QUEEN_DEFAULT));
+    ASSERT_EQ_INT(2, chess_ply());
+    ASSERT_TRUE(chess_undo_ply());
+    ASSERT_EQ_INT(1, chess_ply());
+    ASSERT_EQ_INT(0, chess_side_to_move());
+    ASSERT_EQ_INT(-1, chess_get_square(SQ_E7)); /* black pawn back */
+    ASSERT_TRUE(chess_undo_ply());
+    ASSERT_EQ_INT(0, chess_ply());
+    ASSERT_EQ_INT(1, chess_get_square(SQ_E2));
+    ASSERT_TRUE(!chess_undo_ply());
+}
+
 static void test_last_move(void)
 {
     int c1 = -1;
@@ -188,6 +205,7 @@ int main(void)
     test_e2e5_illegal();
     test_think_applies_legal_black_move();
     test_undo_restores();
+    test_undo_ply();
     test_last_move();
     test_try_move_side_to_move();
     test_set_get_fen();

@@ -337,21 +337,18 @@ extern "C" bool chess_think(unsigned timeout_ms)
     return chess_think_time(timeout_ms, nullptr);
 }
 
-extern "C" bool chess_undo(void)
+static bool replay_to_ply(int target_ply)
 {
-    EngineGuard g;
-    ensure_engine_ready();
-    if (game_ply <= 1)
+    if (target_ply < 0 || target_ply > game_ply)
     {
         return false;
     }
-
     pos[0] = game_pos;
     for (int i = 0; i < 64; i++)
     {
         pole[i] = game_pole[i];
     }
-    game_ply -= 2;
+    game_ply = target_ply;
     for (int i = 0; i < game_ply; i++)
     {
         movestep(0, game_steps[i]);
@@ -361,6 +358,28 @@ extern "C" bool chess_undo(void)
         pos[0] = pos[1];
     }
     return true;
+}
+
+extern "C" bool chess_undo_ply(void)
+{
+    EngineGuard g;
+    ensure_engine_ready();
+    if (game_ply <= 0)
+    {
+        return false;
+    }
+    return replay_to_ply(game_ply - 1);
+}
+
+extern "C" bool chess_undo(void)
+{
+    EngineGuard g;
+    ensure_engine_ready();
+    if (game_ply <= 1)
+    {
+        return false;
+    }
+    return replay_to_ply(game_ply - 2);
 }
 
 extern "C" int chess_get_square(int i)

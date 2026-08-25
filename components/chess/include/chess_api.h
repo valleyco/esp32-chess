@@ -56,10 +56,11 @@ typedef struct {
 } chess_search_result_t;
 
 /**
- * Engine API ownership (device):
- * All entry points take an internal mutex. Prefer: main task owns the board
- * UI and only calls chess_* when the think worker is idle; the think task
- * calls chess_think*() alone. Do not share raw engine globals outside this API.
+ * Engine API ownership:
+ * Single-threaded by default. On ESP-IDF, entry points take an internal mutex;
+ * the app should still treat the think worker as the sole caller of chess_think*
+ * while the UI task only calls other chess_* when think is idle.
+ * Standalone lib consumers: one owner thread, or provide your own locking.
  */
 
 void chess_new_game(void);
@@ -100,7 +101,10 @@ bool chess_think_depth(int max_depth, chess_search_result_t *out);
 /** Same as chess_think_time(timeout_ms, NULL). */
 bool chess_think(unsigned timeout_ms);
 
-/** Undo last human+engine pair when possible (game_ply > 1). */
+/** Undo one half-move (one ply). False if ply==0. */
+bool chess_undo_ply(void);
+
+/** Undo last human+engine pair when possible (game_ply > 1). Uses undo_ply×2. */
 bool chess_undo(void);
 
 /** Board square value at index 0..63 (a8=0 … h1=63); ±1 pawn … ±6 king. */
