@@ -4,6 +4,7 @@
 #include "chess_geom.h"
 #include "chess_ui.h"
 #include "hal_display.h"
+#include "ui_font.h"
 
 /* RGB565 */
 #define C_LIGHT 0xC616
@@ -75,7 +76,38 @@ static void draw_one_square(int sq)
     s_last[sq] = p;
 }
 
-static void draw_btn(ui_strip_hit_t hit, uint16_t fill)
+typedef struct
+{
+    uint16_t color;
+} plot_ctx_t;
+
+static void plot_px(int x, int y, void *user)
+{
+    const plot_ctx_t *ctx = (const plot_ctx_t *)user;
+    hal_display_fill_rect(x, y, 1, 1, ctx->color);
+}
+
+static void draw_label(int x, int y, int w, int h, const char *label, int scale,
+                       uint16_t fg)
+{
+    const int tw = ui_font_text_width(label, scale);
+    const int th = UI_FONT_H * scale;
+    int tx = x + (w - tw) / 2;
+    int ty = y + (h - th) / 2;
+    if (tx < x)
+    {
+        tx = x;
+    }
+    if (ty < y)
+    {
+        ty = y;
+    }
+    plot_ctx_t ctx = {.color = fg};
+    ui_font_draw(label, tx, ty, scale, plot_px, &ctx);
+}
+
+static void draw_btn(ui_strip_hit_t hit, uint16_t fill, const char *label,
+                     int scale, uint16_t fg)
 {
     int x, y, w, h;
     chess_geom_strip_button_rect(hit, &x, &y, &w, &h);
@@ -84,9 +116,31 @@ static void draw_btn(ui_strip_hit_t hit, uint16_t fill)
         return;
     }
     hal_display_fill_rect(x, y, w, h, fill);
-    /* Tiny mark: left bar thickness encodes button id for no-font UI. */
-    const int mark = 4 + ((int)hit % 4);
-    hal_display_fill_rect(x + 4, y + h / 2 - mark / 2, mark, mark, C_WHITE_P);
+    if (label && label[0])
+    {
+        draw_label(x, y, w, h, label, scale, fg);
+    }
+}
+
+static const char *side_label(uint16_t *fg_out)
+{
+    if (s_mode == UI_MODE_OVER)
+    {
+        *fg_out = C_WHITE_P;
+        return (s_status == CHESS_STATUS_CHECKMATE) ? "MATE" : "DRAW";
+    }
+    if (s_busy)
+    {
+        *fg_out = C_BLACK_P;
+        return "WAIT";
+    }
+    if (chess_side_to_move())
+    {
+        *fg_out = C_BLACK_P;
+        return "W";
+    }
+    *fg_out = C_WHITE_P;
+    return "B";
 }
 
 static void draw_strip(void)
@@ -106,22 +160,23 @@ static void draw_strip(void)
     {
         side = chess_side_to_move() ? C_WHITE_P : C_BLACK_P;
     }
-    draw_btn(UI_STRIP_SIDE, side);
+    uint16_t side_fg = C_WHITE_P;
+    const char *side_txt = side_label(&side_fg);
+    draw_btn(UI_STRIP_SIDE, side, side_txt, 2, side_fg);
 
     if (s_mode == UI_MODE_PROMO)
     {
-        draw_btn(UI_STRIP_PROMO_Q, C_HI);      /* queen */
-        draw_btn(UI_STRIP_PROMO_R, C_CYAN);    /* rook */
-        draw_btn(UI_STRIP_PROMO_B, C_GREEN);   /* bishop */
-        draw_btn(UI_STRIP_PROMO_N, C_MAGENTA); /* knight */
+        draw_btn(UI_STRIP_PROMO_Q, C_HI, "Q", 3, C_BLACK_P);
+        draw_btn(UI_STRIP_PROMO_R, C_CYAN, "R", 3, C_BLACK_P);
+        draw_btn(UI_STRIP_PROMO_B, C_GREEN, "B", 3, C_BLACK_P);
+        draw_btn(UI_STRIP_PROMO_N, C_MAGENTA, "N", 3, C_WHITE_P);
     }
     else
     {
-        draw_btn(UI_STRIP_NEW, C_BTN);
-        draw_btn(UI_STRIP_UNDO, C_BTN);
-        draw_btn(UI_STRIP_CALIB, C_BTN);
-        /* TIME: bar width ~ think seconds (1..5 → fraction of button). */
-        draw_btn(UI_STRIP_TIME, C_BTN);
+        draw_btn(UI_STRIP_NEW, C_BTN, "NEW", 2, C_WHITE_P);
+        draw_btn(UI_STRIP_UNDO, C_BTN, "UNDO", 2, C_WHITE_P);
+        draw_btn(UI_STRIP_CALIB, C_BTN, "CAL", 2, C_WHITE_P);
+        /* TIME: think seconds as main label + width bar. */
         int x, y, w, h;
         chess_geom_strip_button_rect(UI_STRIP_TIME, &x, &y, &w, &h);
         int secs = (int)(s_think_ms / 1000);
@@ -133,8 +188,13 @@ static void draw_strip(void)
         {
             secs = 5;
         }
+        char time_label[4];
+        time_label[0] = (char)('0' + secs);
+        time_label[1] = 'S';
+        time_label[2] = '\0';
+        draw_btn(UI_STRIP_TIME, C_BTN, time_label, 2, C_WHITE_P);
         const int bar = (w - 8) * secs / 5;
-        hal_display_fill_rect(x + 4, y + h - 10, bar, 6, C_HI);
+        hal_display_fill_rect(x + 4, y + h - 8, bar, 4, C_HI);
     }
 
     s_strip_dirty = false;

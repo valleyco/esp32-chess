@@ -188,25 +188,30 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 7 | Wire touch selection + human moves; engine reply on worker task | `done` (2026-08-25) — touch FSM + think task on core 1; built, not flashed | host FSM green first |
 | 8 | In-game Calibrate entry + polish: undo, new game, think-time, mate, promotion | `done` (2026-08-25) — strip NEW/UNDO/CAL/TIME, promo picker, mate/stale; built not flashed | extend host where pure |
 | 9 | Document flash/monitor, calib, `make test`, and GPL attribution in README | `done` (2026-08-25) | — |
+| 10 | Strip/promo bitmap font labels (5×7) | `done` (2026-08-25) | host glyph smoke |
 
-**Gate:** no further feature work until on-device bring-up (`lcdtest` → `touchcalib` → `flash` + play). Backlog below is parked until then.
+**Gate:** on-device bring-up **passed** (2026-08-25) — lcdtest OK, touchcalib OK, main play OK.
 
 ## After device test — backlog (v1.1+)
 
-Not scheduled. Capture so we don’t lose the review notes. Revisit only after glass validation.
+| Priority | Item | Status | Why |
+|---|---|---|---|
+| **P0** | On-device: `flash-esp32-lcdtest`, `touchcalib`, then main play | `done` (2026-08-25) | Proves ST7789, calib, FSM, dirty paint, think worker |
+| **P1** | Readable strip / promo labels (tiny bitmap font or icons) | `done` (2026-08-25) | Color-only NEW/UNDO/CAL/TIME and Q/R/B/N is unclear on first use |
+| **P1** | Real piece sprites (replace rect glyphs) | `todo` | Biggest visual UX win; keep dirty-square redraw |
+| **P1** | Last-move highlight (from/to) | `todo` | Makes engine replies obvious without reading UART |
+| **P2** | Auto-enter calib once if NVS empty (hold-pen optional) | `todo` | Plan already sketched; reduces “forgot to CAL” |
+| **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `todo` | Cleaner if we ever dual-human or flip colors; app enforces White today |
+| **P2** | Document / harden single-owner access to engine | `todo` | Needed if WiFi/UCI ever appears |
+| **P3** | Extract `components/chess` to a standalone lib repo | `todo` | After API boring (D2) |
+| **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
+| **P3** | Engine strength / bug chase | `todo` | Prefer playtest first |
 
-| Priority | Item | Why |
+| # | Step | Status |
 |---|---|---|
-| **P0** | On-device: `flash-esp32-lcdtest`, `touchcalib`, then main play | Proves ST7789, calib, FSM, dirty paint, think worker |
-| **P1** | Readable strip / promo labels (tiny bitmap font or icons) | Color-only NEW/UNDO/CAL/TIME and Q/R/B/N is unclear on first use |
-| **P1** | Real piece sprites (replace rect glyphs) | Biggest visual UX win; keep dirty-square redraw |
-| **P1** | Last-move highlight (from/to) | Makes engine replies obvious without reading UART |
-| **P2** | Auto-enter calib once if NVS empty (hold-pen optional) | Plan already sketched; reduces “forgot to CAL” |
-| **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | Cleaner if we ever dual-human or flip colors; app enforces White today |
-| **P2** | Document / harden single-owner access to engine (mutex or “only think task + main when idle”) | Already mostly true; needed if WiFi/UCI ever appears |
-| **P3** | Extract `components/chess` to standalone lib repo | After API boring (D2); host CI without IDF |
-| **P3** | Dual human, opening book, audio, online | Explicitly out of v1; only if wanted later |
-| **P3** | Engine strength / bug chase | Casual engine is enough; prefer legal-move discipline over elo until playtested |
+| 10 | Strip/promo bitmap font labels | `done` (2026-08-25) |
+| 11 | Piece sprites | `todo` |
+| 12 | Last-move highlight | `todo` |
 
 **Do not reverse without cause:** D1–D5 (port this engine, in-tree first, GPL, TDD, dirty squares).
 
