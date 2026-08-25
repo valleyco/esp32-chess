@@ -35,6 +35,7 @@ host/chess/test_chess_api
 host/ui/test_stub
 host/ui/test_touch_calib
 host/ui/test_chess_ui
+host/ui/test_ui_font
 
 # Local tools / misc
 *.swp
