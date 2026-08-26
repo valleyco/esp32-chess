@@ -202,6 +202,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | Capture and keep host/device benchmark baseline | `done` (host 2026-08-26); device deferred | Steps 17–18 done. Step 19 when board available — flash notes in `docs/benchmarks/firmware-2026-08-26/`. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `in progress` (2026-08-26) | Into-check (20). WAC.002 (21). WAC must-pass gate in `make test` (Arasan EPD). |
+| **P1** | Faster LCD paint (batch SPI; stop 1×1 font pixels) | `in progress` — code done host-side 2026-08-26; **time on device when board available** | Steps 27–29 implemented; 26 measure + 30 optional 40 MHz remain. |
 
 | # | Step | Status |
 |---|---|---|
@@ -221,6 +222,11 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 23 | Speed: host/device `-O2`; passer eval only when `endspiel` | `done` (2026-08-26) — lib `b99fbec` |
 | 24 | Minimal TT (32 KiB) + RAM budget assert; 64 KiB tried, no gain | `done` (host); device heap when board available |
 | 25 | TT hash-move ordering | `done` (2026-08-26) |
+| 26 | LCD: measure paint times on device (baseline before changes) | `todo` — needs CYD (code already faster; still measure delta) |
+| 27 | LCD: batch `hal_display_fill_rect` (multi-row / full-rect DMA) | `done` (2026-08-26) — host build; confirm feel on device |
+| 28 | LCD: compose square / piece into small buffer → one blit | `done` (2026-08-26) |
+| 29 | LCD: font draw via row/span blits (not 1×1 pixels) | `done` (2026-08-26) |
+| 30 | LCD: optional 40 MHz SPI A/B; keep 20 MHz if unstable | `todo` |
 
 ## Next — engine strength / bug chase (started 2026-08-26)
 
@@ -247,6 +253,50 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 
 
 **Do not reverse without cause:** D1, D3–D6; D2 now means consume the standalone lib (not re-vendor).
+
+## Next — LCD paint speed (agreed 2026-08-26; run when CYD available)
+
+**Symptom:** board / strip refresh feels slow on device.
+
+**Diagnosis (host code review; confirm with step 26 timings):**
+
+- SPI at **20 MHz** (`CYD_PCLK_HZ` in `components/board/src/cyd_display.c`) — secondary.
+- Primary: `hal_display_fill_rect` issues **one `draw_bitmap` + wait per scanline**.
+- UI routes almost everything through it: square fills, piece spans (1-row rects), strip text via **1×1** `fill_rect` in `plot_px`.
+- Dirty-square design (D5) is fine; HAL transaction cost makes each rect expensive.
+
+**Target feel (subjective + timed):**
+
+| Scene | Goal after work |
+|---|---|
+| Move / select (2–6 dirty squares) | &lt; ~25 ms paint; feels instant |
+| Strip TIME / WAIT update | &lt; ~15 ms; no visible crawl |
+| Full board (NEW / first paint) | Clearly faster than today; tens of ms OK |
+
+**Steps (device-gated measure; paint code landed 2026-08-26)**
+
+1. **Step 26 — baseline on device**  
+   Add short `esp_timer` logs around `chess_ui_paint` / `draw_one_square` / strip (or a one-shot `UI_PAINT_BENCH` build). Flash **pre- and post-** paint patches if comparing, or just record post-27–29 feel. Keep UART quiet in release builds.
+
+2. **Step 27 — batch `fill_rect`** — **done**  
+   Multi-row solid chunks via DMA strip (`hal_display_fill_rect`).
+
+3. **Step 28 — square / piece compose** — **done**  
+   30×30 scratch + `hal_display_blit_rgb565` per dirty square.
+
+4. **Step 29 — font blits** — **done**  
+   `ui_font_draw_spans`; strip labels use spans → `fill_rect` rows (not 1×1).
+
+5. **Step 30 — optional SPI clock**  
+   Try **40 MHz** `pclk_hz` A/B after confirming 27–29 on device. Keep 20 MHz default if artifacts / instability. Document winner in PLAN / baseline note.
+
+**Constraints**
+
+- No full 320×240 RGB565 framebuffer (D5 / RAM — TT already ~48 KiB BSS).
+- Do not break lcdtest / touchcalib / main play; `make test` (host) stays green.
+- Prefer measuring after each step; stop when feel is good enough (don’t over-optimize).
+
+**Out of scope for this track:** engine nps, TT size, animation of moves (can revisit later once paint is cheap).
 
 ## Next — baseline benchmarks (agreed 2026-08-26)
 

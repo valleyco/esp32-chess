@@ -98,10 +98,10 @@ int ui_font_text_width(const char *s, int scale)
     return n * (UI_FONT_W * scale) + (n - 1) * scale;
 }
 
-void ui_font_draw(const char *s, int x, int y, int scale, ui_font_plot_fn plot,
-                  void *user)
+void ui_font_draw_spans(const char *s, int x, int y, int scale,
+                        ui_font_span_fn span, void *user)
 {
-    if (!s || !plot || scale < 1)
+    if (!s || !span || scale < 1)
     {
         return;
     }
@@ -112,21 +112,58 @@ void ui_font_draw(const char *s, int x, int y, int scale, ui_font_plot_fn plot,
         for (int row = 0; row < UI_FONT_H; row++)
         {
             const uint8_t bits = g[row];
-            for (int col = 0; col < UI_FONT_W; col++)
+            /* Build a scale-wide bitmask of on/off columns, then emit runs. */
+            for (int dy = 0; dy < scale; dy++)
             {
-                if (bits & (1u << (4 - col)))
+                const int py = y + row * scale + dy;
+                int run = -1;
+                for (int col = 0; col <= UI_FONT_W; col++)
                 {
-                    for (int dy = 0; dy < scale; dy++)
+                    const int on =
+                        (col < UI_FONT_W) && (bits & (1u << (4 - col)));
+                    if (on)
                     {
-                        for (int dx = 0; dx < scale; dx++)
+                        if (run < 0)
                         {
-                            plot(cx + col * scale + dx, y + row * scale + dy,
-                                 user);
+                            run = col;
                         }
+                    }
+                    else if (run >= 0)
+                    {
+                        const int px = cx + run * scale;
+                        const int pw = (col - run) * scale;
+                        span(px, py, pw, user);
+                        run = -1;
                     }
                 }
             }
         }
         cx += UI_FONT_W * scale + scale;
     }
+}
+
+typedef struct
+{
+    ui_font_plot_fn plot;
+    void *user;
+} plot_via_span_t;
+
+static void span_to_plots(int x, int y, int w, void *user)
+{
+    const plot_via_span_t *ctx = (const plot_via_span_t *)user;
+    for (int i = 0; i < w; i++)
+    {
+        ctx->plot(x + i, y, ctx->user);
+    }
+}
+
+void ui_font_draw(const char *s, int x, int y, int scale, ui_font_plot_fn plot,
+                  void *user)
+{
+    if (!s || !plot || scale < 1)
+    {
+        return;
+    }
+    plot_via_span_t ctx = {.plot = plot, .user = user};
+    ui_font_draw_spans(s, x, y, scale, span_to_plots, &ctx);
 }

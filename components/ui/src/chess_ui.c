@@ -89,26 +89,43 @@ static uint16_t piece_outline(int8_t p)
     return p > 0 ? C_BLACK_P : C_WHITE_P;
 }
 
-static void piece_span(int x, int y, int w, uint16_t color, void *user)
-{
-    (void)user;
-    if (w > 0)
-    {
-        hal_display_fill_rect(x, y, w, 1, color);
-    }
-}
+/* One square RGB565 scratch (30×30); avoids per-span SPI for pieces. */
+static uint16_t s_sq_buf[UI_SQUARE_PX * UI_SQUARE_PX];
 
-static void draw_piece_glyph(int x, int y, int8_t p)
+typedef struct
 {
-    if (p == 0)
+    uint16_t *buf;
+    int ox;
+    int oy;
+} sq_compose_t;
+
+static void piece_span_into_sq(int x, int y, int w, uint16_t color, void *user)
+{
+    sq_compose_t *c = (sq_compose_t *)user;
+    int lx = x - c->ox;
+    int ly = y - c->oy;
+    if (ly < 0 || ly >= UI_SQUARE_PX || w <= 0)
     {
         return;
     }
-    const int type = p > 0 ? p : -p;
-    const int ox = x + (UI_SQUARE_PX - UI_PIECE_PX) / 2;
-    const int oy = y + (UI_SQUARE_PX - UI_PIECE_PX) / 2;
-    ui_piece_draw(type, p > 0, ox, oy, piece_fill(p), piece_outline(p),
-                  piece_span, NULL);
+    if (lx < 0)
+    {
+        w += lx;
+        lx = 0;
+    }
+    if (lx + w > UI_SQUARE_PX)
+    {
+        w = UI_SQUARE_PX - lx;
+    }
+    if (w <= 0)
+    {
+        return;
+    }
+    uint16_t *row = c->buf + (size_t)ly * (size_t)UI_SQUARE_PX + (size_t)lx;
+    for (int i = 0; i < w; i++)
+    {
+        row[i] = color;
+    }
 }
 
 static void draw_one_square(int sq)
@@ -116,20 +133,39 @@ static void draw_one_square(int sq)
     int x, y, w, h;
     chess_geom_square_rect(sq, &x, &y, &w, &h);
     const int8_t p = (int8_t)chess_get_square(sq);
-    hal_display_fill_rect(x, y, w, h, square_color(sq, s_highlight));
-    draw_piece_glyph(x, y, p);
+    const uint16_t bg = square_color(sq, s_highlight);
+
+    for (int i = 0; i < UI_SQUARE_PX * UI_SQUARE_PX; i++)
+    {
+        s_sq_buf[i] = bg;
+    }
+
+    if (p != 0)
+    {
+        const int type = p > 0 ? p : -p;
+        const int ox = x + (UI_SQUARE_PX - UI_PIECE_PX) / 2;
+        const int oy = y + (UI_SQUARE_PX - UI_PIECE_PX) / 2;
+        sq_compose_t ctx = {.buf = s_sq_buf, .ox = x, .oy = y};
+        ui_piece_draw(type, p > 0, ox, oy, piece_fill(p), piece_outline(p),
+                      piece_span_into_sq, &ctx);
+    }
+
+    hal_display_blit_rgb565(x, y, w, h, s_sq_buf);
     s_last[sq] = p;
 }
 
 typedef struct
 {
     uint16_t color;
-} plot_ctx_t;
+} span_ctx_t;
 
-static void plot_px(int x, int y, void *user)
+static void font_span(int x, int y, int w, void *user)
 {
-    const plot_ctx_t *ctx = (const plot_ctx_t *)user;
-    hal_display_fill_rect(x, y, 1, 1, ctx->color);
+    const span_ctx_t *ctx = (const span_ctx_t *)user;
+    if (w > 0)
+    {
+        hal_display_fill_rect(x, y, w, 1, ctx->color);
+    }
 }
 
 static void draw_label(int x, int y, int w, int h, const char *label, int scale,
@@ -147,8 +183,8 @@ static void draw_label(int x, int y, int w, int h, const char *label, int scale,
     {
         ty = y;
     }
-    plot_ctx_t ctx = {.color = fg};
-    ui_font_draw(label, tx, ty, scale, plot_px, &ctx);
+    span_ctx_t ctx = {.color = fg};
+    ui_font_draw_spans(label, tx, ty, scale, font_span, &ctx);
 }
 
 static void draw_btn(ui_strip_hit_t hit, uint16_t fill, const char *label,

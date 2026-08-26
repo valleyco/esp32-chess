@@ -65,14 +65,8 @@ static void rgb565_byteswap(uint16_t *buf, size_t count)
 
 static void panel_fill_black(void)
 {
-    static uint16_t line[PANEL_W];
-    memset(line, 0, sizeof(line));
-    for (int y = 0; y < PANEL_H; y++)
-    {
-        ESP_ERROR_CHECK(
-            esp_lcd_panel_draw_bitmap(s_panel, 0, y, PANEL_W, y + 1, line));
-        lcd_wait_color_done();
-    }
+    /* Batched via fill_rect after panel is up — called only from init. */
+    hal_display_fill_rect(0, 0, PANEL_W, PANEL_H, 0);
 }
 
 void hal_display_init(void)
@@ -201,6 +195,28 @@ void hal_display_blit_rows(hal_display_row_fn fn, void *ctx)
     }
 }
 
+static void clip_rect(int *x, int *y, int *w, int *h)
+{
+    if (*x < 0)
+    {
+        *w += *x;
+        *x = 0;
+    }
+    if (*y < 0)
+    {
+        *h += *y;
+        *y = 0;
+    }
+    if (*x + *w > PANEL_W)
+    {
+        *w = PANEL_W - *x;
+    }
+    if (*y + *h > PANEL_H)
+    {
+        *h = PANEL_H - *y;
+    }
+}
+
 void hal_display_fill_rect(int x, int y, int w, int h, uint16_t rgb565)
 {
     if (!s_panel || w <= 0 || h <= 0)
@@ -208,24 +224,7 @@ void hal_display_fill_rect(int x, int y, int w, int h, uint16_t rgb565)
         return;
     }
 
-    if (x < 0)
-    {
-        w += x;
-        x = 0;
-    }
-    if (y < 0)
-    {
-        h += y;
-        y = 0;
-    }
-    if (x + w > PANEL_W)
-    {
-        w = PANEL_W - x;
-    }
-    if (y + h > PANEL_H)
-    {
-        h = PANEL_H - y;
-    }
+    clip_rect(&x, &y, &w, &h);
     if (w <= 0 || h <= 0)
     {
         return;
@@ -234,18 +233,95 @@ void hal_display_fill_rect(int x, int y, int w, int h, uint16_t rgb565)
     uint16_t pix = rgb565;
     rgb565_byteswap(&pix, 1);
 
-    /* Reuse one strip row as a solid color line (max PANEL_W). */
-    uint16_t *line = s_strip[s_strip_idx];
-    for (int i = 0; i < w; i++)
+    /* Pack as many solid rows as fit in the DMA strip (one txn per chunk). */
+    const int max_rows = STRIP_PIXELS / w;
+    for (int row0 = 0; row0 < h;)
     {
-        line[i] = pix;
+        int nrows = h - row0;
+        if (nrows > max_rows)
+        {
+            nrows = max_rows;
+        }
+
+        uint16_t *buf = s_strip[s_strip_idx];
+        const size_t n = (size_t)nrows * (size_t)w;
+        for (size_t i = 0; i < n; i++)
+        {
+            buf[i] = pix;
+        }
+
+        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(s_panel, x, y + row0, x + w,
+                                                  y + row0 + nrows, buf));
+        lcd_wait_color_done();
+        s_strip_idx ^= 1;
+        row0 += nrows;
+    }
+}
+
+void hal_display_blit_rgb565(int x, int y, int w, int h, const uint16_t *rgb565)
+{
+    if (!s_panel || !rgb565 || w <= 0 || h <= 0)
+    {
+        return;
     }
 
-    for (int row = y; row < y + h; row++)
+    const int stride = w;
+    int dx = x;
+    int dy = y;
+    int dw = w;
+    int dh = h;
+    int sx = 0;
+    int sy = 0;
+
+    if (dx < 0)
     {
-        ESP_ERROR_CHECK(
-            esp_lcd_panel_draw_bitmap(s_panel, x, row, x + w, row + 1, line));
-        lcd_wait_color_done();
+        sx = -dx;
+        dw += dx;
+        dx = 0;
     }
-    s_strip_idx ^= 1;
+    if (dy < 0)
+    {
+        sy = -dy;
+        dh += dy;
+        dy = 0;
+    }
+    if (dx + dw > PANEL_W)
+    {
+        dw = PANEL_W - dx;
+    }
+    if (dy + dh > PANEL_H)
+    {
+        dh = PANEL_H - dy;
+    }
+    if (dw <= 0 || dh <= 0)
+    {
+        return;
+    }
+
+    const int max_rows = STRIP_PIXELS / dw;
+    for (int row0 = 0; row0 < dh;)
+    {
+        int nrows = dh - row0;
+        if (nrows > max_rows)
+        {
+            nrows = max_rows;
+        }
+
+        uint16_t *buf = s_strip[s_strip_idx];
+        for (int r = 0; r < nrows; r++)
+        {
+            const uint16_t *src =
+                rgb565 + (size_t)(sy + row0 + r) * (size_t)stride + (size_t)sx;
+            memcpy(buf + (size_t)r * (size_t)dw, src,
+                   (size_t)dw * sizeof(uint16_t));
+        }
+        rgb565_byteswap(buf, (size_t)nrows * (size_t)dw);
+
+        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(s_panel, dx, dy + row0,
+                                                  dx + dw, dy + row0 + nrows,
+                                                  buf));
+        lcd_wait_color_done();
+        s_strip_idx ^= 1;
+        row0 += nrows;
+    }
 }

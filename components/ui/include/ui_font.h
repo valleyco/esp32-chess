@@ -26,6 +26,14 @@ typedef void (*ui_font_plot_fn)(int x, int y, void *user);
 void ui_font_draw(const char *s, int x, int y, int scale, ui_font_plot_fn plot,
                   void *user);
 
+/**
+ * Draw text as coalesced horizontal spans (after scale).
+ * span(x, y, w, user) fills [x, x+w) at row y — prefer this for LCD.
+ */
+typedef void (*ui_font_span_fn)(int x, int y, int w, void *user);
+void ui_font_draw_spans(const char *s, int x, int y, int scale,
+                        ui_font_span_fn span, void *user);
+
 #ifdef __cplusplus
 }
 #endif

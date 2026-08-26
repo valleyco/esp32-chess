@@ -24,6 +24,12 @@ void hal_display_blit_rows(hal_display_row_fn fn, void *ctx);
 /** Fill a rectangle (clipped). rgb565 is host endian; HAL byteswaps for SPI. */
 void hal_display_fill_rect(int x, int y, int w, int h, uint16_t rgb565);
 
+/**
+ * Blit a w×h RGB565 image (host endian, row-major) at (x,y). Clipped.
+ * Prefer this over many fill_rect calls when the region is already composed.
+ */
+void hal_display_blit_rgb565(int x, int y, int w, int h, const uint16_t *rgb565);
+
 #ifdef __cplusplus
 }
 #endif
