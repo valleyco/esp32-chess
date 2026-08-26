@@ -218,7 +218,8 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 20 | Bug chase: `chess_try_move` must reject moves that leave own king in check | `done` (2026-08-26) — lib `5ba9515` |
 | 21 | WAC.002 (`bm Rxb2`): passed-pawn eval + check extension | `done` (2026-08-26) — lib `1eb53c4`; see notes below |
 | 22 | Harden `make test` with WAC must-pass (Arasan `wacnew.epd`) | `done` (2026-08-26) — honest no-early-exit; see lib |
-| 23 | Speed: host/device `-O2`; passer eval only when `endspiel` | `done` (2026-08-26) — uncommitted until asked |
+| 23 | Speed: host/device `-O2`; passer eval only when `endspiel` | `done` (2026-08-26) — lib `b99fbec` |
+| 24 | Minimal TT (32 KiB) + RAM budget assert; 64 KiB tried, no gain | `done` (host); device heap when board available |
 
 ## Next — engine strength / bug chase (started 2026-08-26)
 
