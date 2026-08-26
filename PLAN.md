@@ -199,8 +199,9 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `done` (2026-08-25) | Cleaner if we ever dual-human or flip colors; app enforces White today |
 | **P2** | Document / harden single-owner access to engine | `done` (2026-08-25) | Needed if WiFi/UCI ever appears |
 | **P3** | Extract `components/chess` to a standalone lib repo | `done` (2026-08-25) | [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib) as git submodule `components/chess`. Host tests/benches + optional node-budget WAC in the lib. |
+| **P2** | Capture and keep host/device benchmark baseline | `agreed` (2026-08-26) | See **Next — baseline benchmarks** below. Do this before engine strength chase / `-O2` / hash experiments. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
-| **P3** | Engine strength / bug chase | `todo` | Prefer playtest first |
+| **P3** | Engine strength / bug chase | `todo` | After baseline is saved; compare WAC/nps deltas to that snapshot |
 
 | # | Step | Status |
 |---|---|---|
@@ -211,8 +212,48 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 14 | try_move for side-to-move | `done` (2026-08-25) |
 | 15 | Engine API mutex + docs | `done` (2026-08-25) |
 | 16 | Consume `esp32-chess-lib` as git submodule | `done` (2026-08-25) |
+| 17 | Baseline: `make test` + `make bench` + WAC smoke → save under `docs/benchmarks/` | `agreed` |
+| 18 | Baseline: full WAC @ node budget (`NODES=1200000` or `DEPTH=5`) → append same doc | `agreed` |
+| 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `agreed` |
 
 **Do not reverse without cause:** D1, D3–D6; D2 now means consume the standalone lib (not re-vendor).
+
+## Next — baseline benchmarks (agreed 2026-08-26)
+
+Goal: snapshot current strength/throughput **before** further engine work, and keep the numbers in-repo for later comparison.
+
+### Layers
+
+| Layer | Command | Role | Mandatory? |
+|---|---|---|---|
+| Regression | `make test` | API asserts + fixed-depth node/move goldens | Yes (always) |
+| Depth bench print | `make bench` | Same goldens, print-only (nodes + secondary nps) | Yes for baseline doc |
+| WAC smoke | `make -C components/chess bench-wac-smoke` | 5 positions @ ~30k nodes | Yes for baseline doc |
+| WAC full | `make -C components/chess bench-wac NODES=1200000 LIMIT=300` | Strength vs EPD `bm` (~1 min ESP32 effort @ ~20 kN/s) | Yes for baseline (can use `DEPTH=5` if faster) |
+| Device | flash + play / optional nps note | Real CYD feel + wall nps | Optional but preferred once |
+
+**Rules:** prefer **node** (or **depth**) budgets over wall-clock for host WAC so scores are comparable across machines. Keep WAC **out of** `make test`. Do not optimize (`-O2`, hash tables, strength chase) until a baseline file exists.
+
+### What each snapshot records
+
+- Date; host CPU / OS; compiler flags (`-O0` default for host benches today)
+- App git SHA + `components/chess` submodule SHA
+- `make test` pass/fail
+- Depth golden table (nodes / best move per case)
+- WAC: solved/total, budget (`NODES` or `DEPTH`), optional wall time as secondary
+- Optional device: approximate nps and subjective 1/3/5 s think feel
+- Urusov reference (context only): ~272/300 @ 1 min/pos on ESP32; ~20 kN/s class
+
+### Where to keep results
+
+- Path: `docs/benchmarks/YYYY-MM-DD-baseline.md` (plain markdown or pasted command output + SHAs)
+- Optional later: `make record-baseline` helper that writes that file — not required for step 17
+
+### Order
+
+1. Step 17 (fast) → commit the doc  
+2. Step 18 (longer idle run) → append / second file  
+3. Step 19 when board is handy
 
 ## Risks / gotchas to expect early
 
@@ -229,7 +270,8 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 
 ## Out of scope for v1
 
-- Dual human, online play, SD opening books, audio on GPIO26, Bluetooth, ILI9341 variants, WAC benchmark UI.
+- Dual human, online play, SD opening books, audio on GPIO26, Bluetooth, ILI9341 variants, **WAC UI on the device**.
 - Further features until **on-device gate** above is passed.
 - Pure-C rewrite of engine internals (C ABI is enough; C++ engine body stays).
 - Publishing the lib as a Component Registry package (submodule is enough).
+- Making full WAC part of mandatory `make test` / CI (opt-in only; baseline docs under `docs/benchmarks/` are enough).
