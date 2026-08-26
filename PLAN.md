@@ -215,7 +215,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 17 | Baseline: `make test` + `make bench` + WAC smoke → save under `docs/benchmarks/` | `done` (2026-08-26) — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md) |
 | 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `done` (2026-08-26) — depth 251/300; nodes 270/300 |
 | 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `deferred` — logging in firmware (`805860c`); bins kept locally under `docs/benchmarks/firmware-2026-08-26/` |
-| 20 | Bug chase: `chess_try_move` must reject moves that leave own king in check | `in progress` | `chess_legal_moves` already filtered; try_move did not — UI could still apply non-highlighted taps |
+| 20 | Bug chase: `chess_try_move` must reject moves that leave own king in check | `done` (2026-08-26) — lib `5ba9515` |
 
 ## Next — engine strength / bug chase (started 2026-08-26)
 
