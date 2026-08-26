@@ -213,7 +213,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 15 | Engine API mutex + docs | `done` (2026-08-25) |
 | 16 | Consume `esp32-chess-lib` as git submodule | `done` (2026-08-25) |
 | 17 | Baseline: `make test` + `make bench` + WAC smoke → save under `docs/benchmarks/` | `done` (2026-08-26) — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md) |
-| 18 | Baseline: full WAC @ node budget (`NODES=1200000` or `DEPTH=5`) → append same doc | `agreed` |
+| 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `in progress` |
 | 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `agreed` |
 
 **Do not reverse without cause:** D1, D3–D6; D2 now means consume the standalone lib (not re-vendor).
@@ -229,10 +229,11 @@ Goal: snapshot current strength/throughput **before** further engine work, and k
 | Regression | `make test` | API asserts + fixed-depth node/move goldens | Yes (always) |
 | Depth bench print | `make bench` | Same goldens, print-only (nodes + secondary nps) | Yes for baseline doc |
 | WAC smoke | `make -C components/chess bench-wac-smoke` | 5 positions @ ~30k nodes | Yes for baseline doc |
-| WAC full | `make -C components/chess bench-wac NODES=1200000 LIMIT=300` | Strength vs EPD `bm` (~1 min ESP32 effort @ ~20 kN/s) | Yes for baseline (can use `DEPTH=5` if faster) |
+| WAC full (nodes) | `make -C components/chess bench-wac NODES=1200000 LIMIT=300` | Strength vs EPD `bm` (~1 min ESP32 effort @ ~20 kN/s) | Yes for baseline (can run later) |
+| WAC full (depth) | `make -C components/chess bench-wac DEPTH=5 LIMIT=300` | Same suite, fixed depth — different effort knob | Yes for baseline (can run later; not instead of nodes) |
 | Device | flash + play / optional nps note | Real CYD feel + wall nps | Optional but preferred once |
 
-**Rules:** prefer **node** (or **depth**) budgets over wall-clock for host WAC so scores are comparable across machines. Keep WAC **out of** `make test`. Do not optimize (`-O2`, hash tables, strength chase) until a baseline file exists.
+**Rules:** prefer **node** (or **depth**) budgets over wall-clock for host WAC so scores are comparable across machines. Keep WAC **out of** `make test`. Do not optimize (`-O2`, hash tables, strength chase) until a baseline file exists. **Record both** full-WAC modes in the baseline series; they measure different things and need not run in the same sitting.
 
 ### What each snapshot records
 
@@ -252,7 +253,7 @@ Goal: snapshot current strength/throughput **before** further engine work, and k
 ### Order
 
 1. Step 17 (fast) → `done` — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md)
-2. Step 18 (longer idle run) → append / second section in that file
+2. Step 18 — full WAC **nodes** (`NODES=1200000`) **and** **depth** (`DEPTH=5`); append both sections when each finishes
 3. Step 19 when board is handy
 
 ## Risks / gotchas to expect early
