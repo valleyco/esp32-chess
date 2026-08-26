@@ -199,7 +199,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `done` (2026-08-25) | Cleaner if we ever dual-human or flip colors; app enforces White today |
 | **P2** | Document / harden single-owner access to engine | `done` (2026-08-25) | Needed if WiFi/UCI ever appears |
 | **P3** | Extract `components/chess` to a standalone lib repo | `done` (2026-08-25) | [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib) as git submodule `components/chess`. Host tests/benches + optional node-budget WAC in the lib. |
-| **P2** | Capture and keep host/device benchmark baseline | `in progress` (2026-08-26) | Step 17 done; steps 18–19 remain. See **Next — baseline benchmarks**. |
+| **P2** | Capture and keep host/device benchmark baseline | `in progress` (2026-08-26) | Steps 17–18 done; step 19 (device) optional. See **Next — baseline benchmarks**. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `todo` | After baseline is saved; compare WAC/nps deltas to that snapshot |
 
@@ -213,7 +213,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 15 | Engine API mutex + docs | `done` (2026-08-25) |
 | 16 | Consume `esp32-chess-lib` as git submodule | `done` (2026-08-25) |
 | 17 | Baseline: `make test` + `make bench` + WAC smoke → save under `docs/benchmarks/` | `done` (2026-08-26) — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md) |
-| 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `in progress` |
+| 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `done` (2026-08-26) — depth 251/300; nodes 270/300 |
 | 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `agreed` |
 
 **Do not reverse without cause:** D1, D3–D6; D2 now means consume the standalone lib (not re-vendor).
@@ -253,7 +253,7 @@ Goal: snapshot current strength/throughput **before** further engine work, and k
 ### Order
 
 1. Step 17 (fast) → `done` — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md)
-2. Step 18 — full WAC **nodes** (`NODES=1200000`) **and** **depth** (`DEPTH=5`); append both sections when each finishes
+2. Step 18 — full WAC **nodes** + **depth** → `done` (270/300 @ 1.2M nodes; 251/300 @ depth 5)
 3. Step 19 when board is handy
 
 ## Risks / gotchas to expect early
