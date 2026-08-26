@@ -220,6 +220,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 22 | Harden `make test` with WAC must-pass (Arasan `wacnew.epd`) | `done` (2026-08-26) — honest no-early-exit; see lib |
 | 23 | Speed: host/device `-O2`; passer eval only when `endspiel` | `done` (2026-08-26) — lib `b99fbec` |
 | 24 | Minimal TT (32 KiB) + RAM budget assert; 64 KiB tried, no gain | `done` (host); device heap when board available |
+| 25 | TT hash-move ordering | `done` (2026-08-26) |
 
 ## Next — engine strength / bug chase (started 2026-08-26)
 
