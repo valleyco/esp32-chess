@@ -227,6 +227,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 28 | LCD: compose square / piece into small buffer → one blit | `done` (2026-08-26) |
 | 29 | LCD: font draw via row/span blits (not 1×1 pixels) | `done` (2026-08-26) |
 | 30 | LCD: optional 40 MHz SPI A/B; keep 20 MHz if unstable | `todo` |
+| 31 | Capture ordering (MVV-LVA) | `done` (2026-08-26) — kiwipete d3 13851→10556; WAC d5 honest 260/300 |
 
 ## Next — engine strength / bug chase (started 2026-08-26)
 
