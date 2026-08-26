@@ -216,7 +216,8 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `done` (2026-08-26) — depth 251/300; nodes 270/300 |
 | 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `deferred` — logging in firmware (`805860c`); bins kept locally under `docs/benchmarks/firmware-2026-08-26/` |
 | 20 | Bug chase: `chess_try_move` must reject moves that leave own king in check | `done` (2026-08-26) — lib `5ba9515` |
-| 21 | WAC.002 (`bm Rxb2`): passed-pawn eval + check extension | `done` (2026-08-26) — see notes below |
+| 21 | WAC.002 (`bm Rxb2`): passed-pawn eval + check extension | `done` (2026-08-26) — lib `1eb53c4`; see notes below |
+| 22 | Harden `make test` with WAC must-pass (Arasan `wacnew.epd`) | `done` (2026-08-26) — lib `1eb53c4` |
 
 ## Next — engine strength / bug chase (started 2026-08-26)
 
