@@ -201,7 +201,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P3** | Extract `components/chess` to a standalone lib repo | `done` (2026-08-25) | [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib) as git submodule `components/chess`. Host tests/benches + optional node-budget WAC in the lib. |
 | **P2** | Capture and keep host/device benchmark baseline | `done` (host 2026-08-26); device deferred | Steps 17–18 done. Step 19 when board available — flash notes in `docs/benchmarks/firmware-2026-08-26/`. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
-| **P3** | Engine strength / bug chase | `todo` | After baseline is saved; compare WAC/nps deltas to that snapshot |
+| **P3** | Engine strength / bug chase | `in progress` (2026-08-26) | Host baseline done. First cut: fix `chess_try_move` into-check (API). Chronic WAC misses are search/eval — no quick win. See step 20. |
 
 | # | Step | Status |
 |---|---|---|
@@ -215,6 +215,24 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 17 | Baseline: `make test` + `make bench` + WAC smoke → save under `docs/benchmarks/` | `done` (2026-08-26) — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md) |
 | 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `done` (2026-08-26) — depth 251/300; nodes 270/300 |
 | 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `deferred` — logging in firmware (`805860c`); bins kept locally under `docs/benchmarks/firmware-2026-08-26/` |
+| 20 | Bug chase: `chess_try_move` must reject moves that leave own king in check | `in progress` | `chess_legal_moves` already filtered; try_move did not — UI could still apply non-highlighted taps |
+
+## Next — engine strength / bug chase (started 2026-08-26)
+
+**Findings from baseline**
+
+- Node-budget WAC **270/300** ≈ Urusov’s **272/300 @ 1 min/pos** — search strength is already in-family.
+- **28 chronic** misses fail both depth‑5 and 1.2M nodes (e.g. WAC.002 still MISS at 5M nodes). Those need eval/search changes, not more time.
+- **21** depth‑only misses improve with the node budget — effort, not a hard bug.
+- Known API bug confirmed: `chess_try_move` accepted walking into check; `chess_legal_moves` / hints did not. Fix in `esp32-chess-lib` + host regression test.
+
+**Approach (agreed by starting this track)**
+
+1. Fix correctness bugs with TDD first (into-check, then others if found).
+2. Do **not** expect WAC score jumps from small API fixes.
+3. Later options (discuss before coding): device `-O2` for more nodes/wall-second; selective eval/search tweaks aimed at chronic misses; hash tables only after RAM budget review.
+4. Re-run `make test` + depth goldens after each fix; full WAC only when claiming a strength delta.
+
 
 **Do not reverse without cause:** D1, D3–D6; D2 now means consume the standalone lib (not re-vendor).
 
@@ -264,7 +282,7 @@ Goal: snapshot current strength/throughput **before** further engine work, and k
 - **GPIO36/39**: no internal pulls (touch MISO/IRQ).
 - **Resistive touch drift / unit variance**: hard-coded raw ranges will mis-hit squares; calibration + NVS is mandatory for playable chess. Recalibrate after case flex or if a different CYD unit is used.
 - **Engine quality / time**: ~20 kN/s class, no hash tables (commented out — “not enough RAM”); fine for casual play; deep search feels slow — default short `timelimith`. Host think tests should use a short timeout.
-- **Known engine bugs**: upstream issue — illegal moves still allowed when in check on the human path; no 50-move draw. Prefer applying only moves from `generate_steps()` by square indices (not SAN/`getbm`) so the UI stays on the legal list — and **assert that in host tests**.
+- **Known engine bugs**: upstream generator allows pseudo-legal moves into check; **`chess_try_move` must filter with king-safety** (same as `chess_legal_moves`). No 50-move draw. Prefer applying only legal moves by square indices — assert in host tests.
 - **Promotion / castling / en passant**: already in engine `step_t.type`; UI must pass type for underpromotion and show castling as king move (engine handles rook).
 - **GPL-3**: keep LICENSE; if you publish the repo, source must ship.
 - **Design history**: authored as a serial coprocessor (GUI elsewhere); early LVGL work was abandoned — expect to own all glass UI.
