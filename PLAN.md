@@ -214,7 +214,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 16 | Consume `esp32-chess-lib` as git submodule | `done` (2026-08-25) |
 | 17 | Baseline: `make test` + `make bench` + WAC smoke → save under `docs/benchmarks/` | `done` (2026-08-26) — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md) |
 | 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `done` (2026-08-26) — depth 251/300; nodes 270/300 |
-| 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `agreed` |
+| 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `in progress` — UART logs depth/nodes/nps; boot 1s start probe; needs board flash |
 
 **Do not reverse without cause:** D1, D3–D6; D2 now means consume the standalone lib (not re-vendor).
 

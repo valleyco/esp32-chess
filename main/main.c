@@ -3,6 +3,7 @@
 #include "chess_geom.h"
 #include "chess_ui.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "hal_display.h"
@@ -77,7 +78,22 @@ static void think_task(void *arg)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         ESP_LOGI(TAG, "engine thinking (%u ms)...", s_think_ms);
-        s_think_ok = chess_think(s_think_ms);
+        chess_search_result_t r = {0};
+        const int64_t t0 = esp_timer_get_time();
+        s_think_ok = chess_think_time(s_think_ms, &r);
+        const int64_t us = esp_timer_get_time() - t0;
+        const double ms = (double)us / 1000.0;
+        const double nps = (ms > 0.0) ? (1000.0 * (double)r.nodes / ms) : 0.0;
+        if (s_think_ok)
+        {
+            ESP_LOGI(TAG,
+                     "engine done depth=%d nodes=%lu score=%d (%.0f ms, %.0f nps)",
+                     r.depth, (unsigned long)r.nodes, r.score, ms, nps);
+        }
+        else
+        {
+            ESP_LOGW(TAG, "engine think failed (%.0f ms)", ms);
+        }
         s_think_done = true;
     }
 }
@@ -345,6 +361,22 @@ void app_main(void)
     {
         ESP_LOGE(TAG, "think task create failed");
         return;
+    }
+
+    /* Device baseline (step 19): one start-position think for ESP32 nps. */
+    {
+        chess_search_result_t r = {0};
+        const int64_t t0 = esp_timer_get_time();
+        const bool think_ok = chess_think_time(1000, &r);
+        const double ms = (double)(esp_timer_get_time() - t0) / 1000.0;
+        const double nps = (ms > 0.0) ? (1000.0 * (double)r.nodes / ms) : 0.0;
+        ESP_LOGI(TAG,
+                 "device_bench 1s start: ok=%d depth=%d nodes=%lu score=%d "
+                 "(%.0f ms, %.0f nps)",
+                 (int)think_ok, r.depth, (unsigned long)r.nodes, r.score, ms,
+                 nps);
+        chess_new_game();
+        refresh_board(-1);
     }
 
     ESP_LOGI(TAG, "strip: NEW / UNDO / CAL / TIME — play White");
