@@ -55,6 +55,7 @@ static int s_last_from = -1;
 static int s_last_to = -1;
 static unsigned s_strip_dirty = STRIP_DIRTY_ALL;
 static bool s_busy = false;
+static bool s_new_armed = false;
 static chess_ui_mode_t s_mode = UI_MODE_PLAY;
 static chess_status_t s_status = CHESS_STATUS_OK;
 static unsigned s_think_ms = 3000;
@@ -294,7 +295,10 @@ static void draw_strip_btns(void)
         return;
     }
 
-    draw_btn(UI_STRIP_NEW, C_BTN_NEW, "NEW", 2, C_TEXT_ON_DARK);
+    draw_btn(UI_STRIP_NEW,
+             s_new_armed ? C_BUSY : C_BTN_NEW,
+             s_new_armed ? "OK" : "NEW", 2,
+             s_new_armed ? C_TEXT_ON_LIGHT : C_TEXT_ON_DARK);
     draw_btn(UI_STRIP_UNDO, C_BTN_UNDO, "UNDO", 2, C_TEXT_ON_LIGHT);
     draw_btn(UI_STRIP_CALIB, C_BTN_CAL, "CAL", 2, C_TEXT_ON_DARK);
     draw_strip_time();
@@ -331,6 +335,7 @@ void chess_ui_init(void)
     s_last_to = -1;
     s_strip_dirty = STRIP_DIRTY_ALL;
     s_busy = false;
+    s_new_armed = false;
     s_mode = UI_MODE_PLAY;
     s_status = CHESS_STATUS_OK;
     s_think_ms = 3000;
@@ -386,6 +391,16 @@ void chess_ui_set_think_ms(unsigned ms)
     }
     s_think_ms = ms;
     s_strip_dirty |= STRIP_DIRTY_TIME;
+}
+
+void chess_ui_set_new_armed(bool armed)
+{
+    if (s_new_armed == armed)
+    {
+        return;
+    }
+    s_new_armed = armed;
+    s_strip_dirty |= STRIP_DIRTY_BTNS;
 }
 
 static void dirty_sq(int sq)

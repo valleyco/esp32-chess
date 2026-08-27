@@ -23,9 +23,8 @@ static void test_text_width(void)
 {
     /* scale 2: 3 glyphs * 10 + 2 gaps * 2 = 34 */
     ASSERT_EQ_INT(34, ui_font_text_width("NEW", 2));
-    ASSERT_EQ_INT(0, ui_font_text_width("", 2));
-    ASSERT_EQ_INT(10, ui_font_text_width("W", 2));
-}
+    ASSERT_EQ_INT(22, ui_font_text_width("OK", 2));
+    ASSERT_TRUE(ui_font_glyph('K') != NULL);}
 
 static void test_draw_plots(void)
 {

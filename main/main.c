@@ -32,6 +32,18 @@ static int s_promo_c1 = -1;
 static int s_promo_c2 = -1;
 static chess_fsm_t s_fsm;
 static bool s_was_pressed;
+static bool s_new_armed;
+
+static void clear_new_armed(void)
+{
+    if (!s_new_armed)
+    {
+        return;
+    }
+    s_new_armed = false;
+    chess_ui_set_new_armed(false);
+    chess_ui_paint();
+}
 
 static bool from_selectable(int sq)
 {
@@ -101,6 +113,8 @@ static void think_task(void *arg)
 
 static void do_new_game(void)
 {
+    s_new_armed = false;
+    chess_ui_set_new_armed(false);
     chess_new_game();
     chess_fsm_init(&s_fsm);
     s_promo = false;
@@ -116,6 +130,7 @@ static void do_new_game(void)
 
 static void do_undo(void)
 {
+    clear_new_armed();
     if (s_thinking || s_promo)
     {
         return;
@@ -136,6 +151,7 @@ static void do_undo(void)
 
 static void do_calib(void)
 {
+    clear_new_armed();
     if (s_thinking)
     {
         return;
@@ -150,6 +166,7 @@ static void do_calib(void)
 
 static void cycle_think_time(void)
 {
+    clear_new_armed();
     s_think_opt = (s_think_opt + 1) % 3;
     s_think_ms = k_think_opts[s_think_opt];
     chess_ui_set_think_ms(s_think_ms);
@@ -196,6 +213,7 @@ static void complete_promo(int piece)
 
 static void on_board_tap(int sq)
 {
+    clear_new_armed();
     if (s_promo || s_game_over)
     {
         return;
@@ -266,6 +284,20 @@ static void on_strip_tap(ui_strip_hit_t hit)
     switch (hit)
     {
     case UI_STRIP_NEW:
+        /* Already at start — no need to confirm. */
+        if (chess_ply() == 0 && !s_game_over)
+        {
+            do_new_game();
+            break;
+        }
+        if (!s_new_armed)
+        {
+            s_new_armed = true;
+            chess_ui_set_new_armed(true);
+            chess_ui_paint();
+            ESP_LOGI(TAG, "NEW armed — tap OK to confirm");
+            break;
+        }
         do_new_game();
         break;
     case UI_STRIP_UNDO:

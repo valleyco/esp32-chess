@@ -39,6 +39,12 @@ void chess_ui_set_status(chess_status_t st);
 /** Think-time shown on TIME button (milliseconds). TIME control only. */
 void chess_ui_set_think_ms(unsigned ms);
 
+/**
+ * Arm NEW confirm: button shows amber "OK" until cleared or confirmed.
+ * Caller paints after changing.
+ */
+void chess_ui_set_new_armed(bool armed);
+
 /** Paint dirty squares + dirty strip regions (side / buttons / full). */
 void chess_ui_paint(void);
 
