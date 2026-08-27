@@ -28,7 +28,7 @@ static const char *TAG = "hal_display";
  */
 #define PANEL_W 320
 #define PANEL_H 240
-#define CYD_PCLK_HZ (20 * 1000 * 1000)
+#define CYD_PCLK_HZ (40 * 1000 * 1000) /* step 30: beat 20 MHz; revert if artifacts */
 
 #define BLIT_ROWS 8
 #define STRIP_PIXELS (PANEL_W * BLIT_ROWS)

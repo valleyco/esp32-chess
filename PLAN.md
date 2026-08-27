@@ -203,7 +203,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | Capture and keep host/device benchmark baseline | `done` (host 2026-08-26; device 2026-08-27) | Steps 17–19 done. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `in progress` (2026-08-26) | Into-check (20). WAC.002 (21). WAC must-pass gate in `make test` (Arasan EPD). |
-| **P1** | Faster LCD paint (batch SPI; stop 1×1 font pixels) | `done` measure (2026-08-27); code 27–29 done; **30 optional 40 MHz A/B** | Boot `paint_bench` logs; move/TIME meet targets; full + side strip still room |
+| **P1** | Faster LCD paint (batch SPI; stop 1×1 font pixels) | `done` (2026-08-27) | Steps 26–30: batch blit + compose + font spans; **40 MHz** panel SPI |
 
 | # | Step | Status |
 |---|---|---|
@@ -227,7 +227,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 27 | LCD: batch `hal_display_fill_rect` (multi-row / full-rect DMA) | `done` (2026-08-26) — host build; confirm feel on device |
 | 28 | LCD: compose square / piece into small buffer → one blit | `done` (2026-08-26) |
 | 29 | LCD: font draw via row/span blits (not 1×1 pixels) | `done` (2026-08-26) |
-| 30 | LCD: optional 40 MHz SPI A/B; keep 20 MHz if unstable | `todo` |
+| 30 | LCD: optional 40 MHz SPI A/B; keep 20 MHz if unstable | `done` (2026-08-27) — **kept 40 MHz** (~22% faster paint; no boot errors) |
 | 31 | Capture ordering (MVV-LVA) | `done` (2026-08-26) — kiwipete d3 13851→10556; WAC d5 honest 260/300 |
 
 ## Next — engine strength / bug chase (started 2026-08-26)
@@ -289,8 +289,10 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 4. **Step 29 — font blits** — **done**  
    `ui_font_draw_spans`; strip labels use spans → `fill_rect` rows (not 1×1).
 
-5. **Step 30 — optional SPI clock**  
-   Try **40 MHz** `pclk_hz` A/B after confirming 27–29 on device. Keep 20 MHz default if artifacts / instability. Document winner in PLAN / baseline note.
+5. **Step 30 — optional SPI clock** — **done (kept 40 MHz)**  
+   A/B on device: 40 MHz cut paint time ~20–30% vs 20 MHz with clean boot.
+   Default is now `CYD_PCLK_HZ = 40e6`. Drop back to 20 MHz if a unit shows
+   snow/tearing.
 
 **Constraints**
 
