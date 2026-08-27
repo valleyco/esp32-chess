@@ -1,33 +1,46 @@
-# ESP32 Chess on CYD
+# ESP32 Chess
 
-Playable chess on the **ESP32-2432S028R** (Cheap Yellow Display): ST7789 320×240
-LCD + XPT2046 resistive touch. You play White; the engine replies on a FreeRTOS
-worker task.
+[![Host tests](https://github.com/valleyco/esp32-chess/actions/workflows/host-tests.yml/badge.svg)](https://github.com/valleyco/esp32-chess/actions/workflows/host-tests.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-Living plan: [`PLAN.md`](PLAN.md). Board notes:
-[`docs/boards/esp32-2432s028r/BOARD.md`](docs/boards/esp32-2432s028r/BOARD.md).
+Touch chess on **ESP32** + SPI TFT. You play White; the engine replies on a
+FreeRTOS worker. Engine/API live in the submodule
+[`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib) (**GPL-3.0**).
+
+![Play layout (mock)](docs/screenshots/cyd-play-mock.png)
+
+## Hardware
+
+Designed around ESP-IDF board HALs — **not** locked to one module forever.
+
+| Status | Target |
+|---|---|
+| **Primary bring-up** | Classic ESP32 “CYD” class (e.g. ESP32-2432S028R, **ST7789** 320×240 + XPT2046) |
+| **Planned** | Other ESP32 variants (e.g. **ESP32-C3**) and panels (e.g. **ILI9341**) |
+
+Board notes for the current bring-up unit:
+[`docs/boards/esp32-2432s028r/`](docs/boards/esp32-2432s028r/BOARD.md).
+New boards should add a short pin/quirk doc under `docs/boards/`.
 
 ## Requirements
 
-- ESP-IDF **6.1** (same as `esp32-invaders` on this machine: source
-  `Projects/esp-idf/export.sh` before `make`)
-- Git submodule **`components/chess`** → [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib)
-  (`git clone --recurse-submodules …` or `git submodule update --init`)
-- Classic ESP32 CYD on USB serial (default **`/dev/ttyUSB0`**)
-- Host tests: `gcc` / `g++` (no IDF)
+- ESP-IDF **6.x** (source `export.sh` before `make`)
+- Git submodule `components/chess` →
+  [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib)
+- Host tests: `gcc` / `g++` (no IDF, no board)
 
 ## Quick start
 
 ```bash
-. /path/to/esp-idf/export.sh
-git clone --recurse-submodules git@github.com:valleyco/esp32-chess.git
+git clone --recurse-submodules https://github.com/valleyco/esp32-chess.git
 cd esp32-chess
-make test          # host: chess API + UI geom/FSM/calib math
+. /path/to/esp-idf/export.sh
+make test          # host: UI + chess lib
 make build         # firmware
-make flash monitor # needs the board plugged in
+make flash monitor # default PORT=/dev/ttyUSB0
 ```
 
-If you already cloned without submodules: `git submodule update --init --recursive`.
+If you cloned without submodules: `git submodule update --init --recursive`.
 
 Override port: `make flash PORT=/dev/ttyACM0`.
 
@@ -35,88 +48,66 @@ Override port: `make flash PORT=/dev/ttyACM0`.
 
 | Target | Purpose |
 |---|---|
-| `make flash-esp32-lcdtest` | Orientation test card (ST7789) |
+| `make flash-esp32-lcdtest` | Orientation test card |
 | `make flash-esp32-touchtest` | Finger-paint + UART raw ADC |
-| `make flash-esp32-touchcalib` | Standalone 4-corner calib wizard → NVS |
+| `make flash-esp32-touchcalib` | Standalone 4-corner calib → NVS |
 
-After calib (standalone, in-game **CAL**, or first boot), touch mapping is stored
-in NVS namespace `touch`. If NVS has no valid calib, the main app runs the wizard
-automatically once before the board appears. Empty/corrupt load still falls back
-to factory raw ranges (~200…3800) until the wizard succeeds.
+If NVS has no valid touch calib, the main app runs the wizard once at boot.
+In-game **CAL** recalibrates anytime. Empty NVS falls back to factory raw ranges
+until the wizard succeeds.
 
 ## How to play
 
-1. Flash the main app (`make flash`).
-2. On first boot without saved calib, complete the 4-corner wizard; later use **CAL** if hits drift.
-3. Tap a White piece, then a destination square.
-4. Strip turns yellow while the engine thinks; then Black moves.
+1. `make flash`
+2. Complete calib if prompted (or tap **CAL**)
+3. Tap a White piece, then a destination square
+4. Strip shows thinking; then Black moves (teal last-move highlight)
 
-### Strip controls (right 80 px)
+### Strip (right band)
 
 | Band | Action |
 |---|---|
-| Top | Side to move (yellow = thinking; red = mate; blue = stalemate) |
+| Top | Side to move (amber = thinking; red = mate; blue = stalemate) |
 | NEW | New game |
 | UNDO | Undo last human + engine pair |
-| CAL | In-game 4-corner calibration |
-| TIME | Cycle think time **1 s → 3 s → 5 s** (bar width) |
+| CAL | 4-corner calibration |
+| TIME | Think time **1 s → 3 s → 5 s** |
 
-**Promotion:** strip becomes Q / R / B / N (color-coded). Tap one to finish the move.
+**Promotion:** strip becomes Q / R / B / N. Squares use engine index
+**a8 = 0 … h1 = 63**.
 
-Squares: engine index **a8 = 0 … h1 = 63**; board is left 240×240 (30 px cells).
-
-## Host tests (TDD)
+## Host tests
 
 ```bash
-make test           # all (chess lib + UI geom/FSM/calib math)
-make test-chess     # delegates to components/chess (API + depth goldens)
-make bench          # print depth/nodes/nps table (no asserts)
-make test-ui        # geom, dirty mask, FSM, strip hits, touch calib math
+make test           # all
+make test-chess     # esp32-chess-lib
+make test-ui        # geom / dirty / FSM / calib math
+make bench          # depth/nodes/nps (lib)
 ```
 
-Optional strength suite lives in the lib (`make -C components/chess bench-wac-smoke`);
-it is **not** part of `make test`.
+Optional strength suite: `make -C components/chess bench-wac-smoke` (not in
+`make test`). Engine UART search spam is off unless built with
+`-DCHESS_ENGINE_SERIAL`.
 
-No LCD/IDF in `host/` — pure `gcc` against `components/chess` and `components/ui`
-(plus board calib math).
-
-Engine search progress is **muted** by default (no UART spam during think). To
-re-enable upstream-style depth lines, build with `-DCHESS_ENGINE_SERIAL`.
-
-## Project layout
+## Layout
 
 ```text
-components/board/   ST7789 + XPT2046 HAL, touch calib math/NVS/wizard
-components/chess/   git submodule → esp32-chess-lib (GPL engine + chess_api)
+components/board/   display + touch HAL, calib math/NVS/wizard
+components/chess/   submodule → esp32-chess-lib (GPL engine + chess_api)
 components/ui/      geom, dirty redraw, FSM, paint
-host/ui/            host UI unit tests
-main/               game loop + lcd/touch/calib probe mains
+host/ui/            host UI tests
+main/               game loop + lcd/touch/calib probes
+docs/               boards, benchmarks, screenshots
 ```
 
-Board paint is **square-level dirty** (`last_drawn[64]`), not a full framebuffer.
+Board paint is **square-level dirty** (no full RGB565 framebuffer).
+`chess_api` uses an internal mutex — UI should call it when the think worker is
+idle (except the worker’s `chess_think`).
 
-`chess_api` serializes engine access with an internal mutex. The UI task should
-only call into it when the think worker is idle (except the worker’s own
-`chess_think`); do not touch engine globals outside `chess_api`.
+## License
 
-API notes (see lib `chess_api.h`):
+**GPL-3.0** for this combined firmware (links the GPL engine). See
+[`LICENSE`](LICENSE), [`CREDITS.md`](CREDITS.md), and
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-- `chess_set_fen` / `chess_get_fen` — `const char*` FEN I/O
-- `chess_think_time` / `chess_think_nodes` / `chess_think_depth` — play vs
-  CPU-independent effort; optional `chess_search_result_t`
-- `chess_legal_moves` — legal list for the side to move
-- `chess_undo_ply` / `chess_undo` — one half-move vs human+engine pair
-
-## License and attribution
-
-This firmware **links a GPL-3.0 chess engine**. If you distribute binaries or a
-modified tree, you must comply with **GPL-3.0** (provide corresponding source,
-keep license notices).
-
-| Piece | License / credit |
-|---|---|
-| Chess engine (`components/chess` → esp32-chess-lib) | **GPL-3.0** — original by **Sergey Urusov** ([Hackster](https://www.hackster.io/Sergey_Urusov/esp32-chess-engine-c29dd9), GPL3+); packaged by [hpsaturn/esp32-chess-engine](https://github.com/hpsaturn/esp32-chess-engine). Full text: [`components/chess/LICENSE`](components/chess/LICENSE). |
-| ESP-IDF / `esp_lcd` | Apache-2.0 (compatible with GPL-3 when combined) |
-| This app’s UI/HAL glue | Same combined work — treat the distributed firmware as GPL-3.0-compatible |
-
-Do not remove the engine LICENSE or author credit when publishing.
+Development notes (not a user guide): [`PLAN.md`](PLAN.md).

@@ -1,6 +1,7 @@
-# ESP32 Chess on CYD — high-level plan
+# ESP32 Chess — development plan (maintainer notes)
 
-**This file:** `/home/davidl/Projects/esp32-chess/PLAN.md` (repo root; canonical living plan).
+**Audience:** contributors / maintainers — not the end-user README.
+**This file:** repo-root `PLAN.md` (living plan). Product overview lives in [`README.md`](README.md).
 
 Work it interactively. **Do not start a step until we agree it.**
 After each discussion, update decisions and step status here.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "chess_api.h"
 #include "chess_fsm.h"
 #include "chess_geom.h"
