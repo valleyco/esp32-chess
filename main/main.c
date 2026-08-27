@@ -335,6 +335,36 @@ static void handle_think_done(void)
     }
 }
 
+static void run_paint_bench(void)
+{
+    /* Step 26: one-shot scenes matching PLAN targets (full / move / strip). */
+    chess_ui_set_paint_log(true);
+    ESP_LOGI(TAG, "paint_bench begin");
+
+    chess_ui_invalidate_all();
+    chess_ui_sync_from_game(-1);
+    chess_ui_paint(); /* full 64 + strip */
+
+    (void)chess_try_move(52, 36, CHESS_PROMO_QUEEN_DEFAULT); /* e2e4 */
+    chess_ui_sync_from_game(-1);
+    chess_ui_paint(); /* move dirty + last-move + side */
+
+    chess_ui_set_think_ms(5000);
+    chess_ui_paint(); /* TIME button only */
+
+    chess_ui_set_busy(true);
+    chess_ui_paint(); /* side badge only */
+    chess_ui_set_busy(false);
+
+    chess_ui_set_paint_log(false);
+    chess_new_game();
+    chess_ui_set_think_ms(s_think_ms);
+    chess_ui_invalidate_all();
+    chess_ui_sync_from_game(-1);
+    chess_ui_paint();
+    ESP_LOGI(TAG, "paint_bench end");
+}
+
 void app_main(void)
 {
     ESP_LOGI(TAG, "esp32-chess — play + strip controls");
@@ -353,8 +383,7 @@ void app_main(void)
 
     chess_ui_init();
     chess_ui_set_think_ms(s_think_ms);
-    chess_ui_invalidate_all();
-    refresh_board(-1);
+    run_paint_bench();
 
     BaseType_t ok = xTaskCreatePinnedToCore(think_task, "think", THINK_STACK,
                                             NULL, 5, &s_think_task, 1);

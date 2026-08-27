@@ -4,9 +4,14 @@
 #include "chess_geom.h"
 #include "chess_hints.h"
 #include "chess_ui.h"
+#include "esp_log.h"
+#include "esp_timer.h"
 #include "hal_display.h"
 #include "ui_font.h"
 #include "ui_pieces.h"
+
+static const char *TAG_UI = "ui";
+static bool s_paint_log;
 
 /* RGB565 — strip palette */
 #define C_LIGHT 0xC616
@@ -458,8 +463,17 @@ void chess_ui_sync_from_game(int highlight_sq)
     }
 }
 
+void chess_ui_set_paint_log(bool enable)
+{
+    s_paint_log = enable;
+}
+
 void chess_ui_paint(void)
 {
+    const int nsq = chess_dirty_count(s_dirty);
+    const unsigned strip_flags = s_strip_dirty;
+    const int64_t t0 = esp_timer_get_time();
+
     for (int i = 0; i < 64; i++)
     {
         if (chess_dirty_test(s_dirty, i))
@@ -468,9 +482,25 @@ void chess_ui_paint(void)
         }
     }
     chess_dirty_clear(&s_dirty);
+    const int64_t t1 = esp_timer_get_time();
+
     if (s_strip_dirty)
     {
         draw_strip();
+    }
+    const int64_t t2 = esp_timer_get_time();
+
+    if (s_paint_log)
+    {
+        const double board_ms = (double)(t1 - t0) / 1000.0;
+        const double strip_ms = (double)(t2 - t1) / 1000.0;
+        const double total_ms = (double)(t2 - t0) / 1000.0;
+        const double per_sq =
+            (nsq > 0) ? (board_ms / (double)nsq) : 0.0;
+        ESP_LOGI(TAG_UI,
+                 "paint squares=%d board=%.1fms (%.2fms/sq) strip=0x%x "
+                 "%.1fms total=%.1fms",
+                 nsq, board_ms, per_sq, strip_flags, strip_ms, total_ms);
     }
 }
 

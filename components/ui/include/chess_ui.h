@@ -42,6 +42,12 @@ void chess_ui_set_think_ms(unsigned ms);
 /** Paint dirty squares + dirty strip regions (side / buttons / full). */
 void chess_ui_paint(void);
 
+/**
+ * When true, each chess_ui_paint logs board/strip microseconds (UART).
+ * Off by default — enable only for short benches.
+ */
+void chess_ui_set_paint_log(bool enable);
+
 /** Snapshot last_drawn (for host tests via separate build — device uses paint). */
 void chess_ui_get_last_drawn(int8_t out[64]);
 

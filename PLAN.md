@@ -203,7 +203,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | Capture and keep host/device benchmark baseline | `done` (host 2026-08-26; device 2026-08-27) | Steps 17–19 done. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `in progress` (2026-08-26) | Into-check (20). WAC.002 (21). WAC must-pass gate in `make test` (Arasan EPD). |
-| **P1** | Faster LCD paint (batch SPI; stop 1×1 font pixels) | `in progress` — code done host-side 2026-08-26; **time on device when board available** | Steps 27–29 implemented; 26 measure + 30 optional 40 MHz remain. |
+| **P1** | Faster LCD paint (batch SPI; stop 1×1 font pixels) | `done` measure (2026-08-27); code 27–29 done; **30 optional 40 MHz A/B** | Boot `paint_bench` logs; move/TIME meet targets; full + side strip still room |
 
 | # | Step | Status |
 |---|---|---|
@@ -223,7 +223,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 23 | Speed: host/device `-O2`; passer eval only when `endspiel` | `done` (2026-08-26) — lib `b99fbec` |
 | 24 | Minimal TT (32 KiB) + RAM budget assert; 64 KiB tried, no gain | `done` (host); device heap when board available |
 | 25 | TT hash-move ordering | `done` (2026-08-26) |
-| 26 | LCD: measure paint times on device (baseline before changes) | `todo` — needs CYD (code already faster; still measure delta) |
+| 26 | LCD: measure paint times on device (baseline before changes) | `done` (2026-08-27) — post 27–29: full ~280 ms; move ~18 ms; TIME ~15 ms; busy side ~23 ms |
 | 27 | LCD: batch `hal_display_fill_rect` (multi-row / full-rect DMA) | `done` (2026-08-26) — host build; confirm feel on device |
 | 28 | LCD: compose square / piece into small buffer → one blit | `done` (2026-08-26) |
 | 29 | LCD: font draw via row/span blits (not 1×1 pixels) | `done` (2026-08-26) |
