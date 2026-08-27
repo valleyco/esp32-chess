@@ -200,7 +200,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | **P2** | `chess_try_move` for side-to-move (not hardcoded White-only) | `done` (2026-08-25) | Cleaner if we ever dual-human or flip colors; app enforces White today |
 | **P2** | Document / harden single-owner access to engine | `done` (2026-08-25) | Needed if WiFi/UCI ever appears |
 | **P3** | Extract `components/chess` to a standalone lib repo | `done` (2026-08-25) | [`esp32-chess-lib`](https://github.com/valleyco/esp32-chess-lib) as git submodule `components/chess`. Host tests/benches + optional node-budget WAC in the lib. |
-| **P2** | Capture and keep host/device benchmark baseline | `done` (host 2026-08-26); device deferred | Steps 17–18 done. Step 19 when board available — flash notes in `docs/benchmarks/firmware-2026-08-26/`. |
+| **P2** | Capture and keep host/device benchmark baseline | `done` (host 2026-08-26; device 2026-08-27) | Steps 17–19 done. |
 | **P3** | Dual human, opening book, audio, online | `todo` | Only if wanted later |
 | **P3** | Engine strength / bug chase | `in progress` (2026-08-26) | Into-check (20). WAC.002 (21). WAC must-pass gate in `make test` (Arasan EPD). |
 | **P1** | Faster LCD paint (batch SPI; stop 1×1 font pixels) | `in progress` — code done host-side 2026-08-26; **time on device when board available** | Steps 27–29 implemented; 26 measure + 30 optional 40 MHz remain. |
@@ -216,7 +216,7 @@ Invaders maps XPT2046 with **compile-time** raw ranges (`~200…3800`) and no ax
 | 16 | Consume `esp32-chess-lib` as git submodule | `done` (2026-08-25) |
 | 17 | Baseline: `make test` + `make bench` + WAC smoke → save under `docs/benchmarks/` | `done` (2026-08-26) — [`docs/benchmarks/2026-08-26-baseline.md`](docs/benchmarks/2026-08-26-baseline.md) |
 | 18 | Baseline: full WAC @ **nodes** and @ **depth** (both; run when convenient) → append same doc | `done` (2026-08-26) — depth 251/300; nodes 270/300 |
-| 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `deferred` — logging in firmware (`805860c`); bins kept locally under `docs/benchmarks/firmware-2026-08-26/` |
+| 19 | Optional: ESP32 nps / 1–5 s think feel → append device numbers to baseline | `done` (2026-08-27) — ~17.6 kN/s @ 1 s start; see baseline doc |
 | 20 | Bug chase: `chess_try_move` must reject moves that leave own king in check | `done` (2026-08-26) — lib `5ba9515` |
 | 21 | WAC.002 (`bm Rxb2`): passed-pawn eval + check extension | `done` (2026-08-26) — lib `1eb53c4`; see notes below |
 | 22 | Harden `make test` with WAC must-pass (Arasan `wacnew.epd`) | `done` (2026-08-26) — honest no-early-exit; see lib |
